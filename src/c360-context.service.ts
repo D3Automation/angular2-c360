@@ -1,6 +1,5 @@
 import { Injectable, OnInit } from '@angular/core';
-import { Logger } from './logger.service';
-import { C360Model } from './c360-model.service';
+import { C360Model } from './C360Model';
 import { UIPart } from './ui-part';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
 
@@ -10,12 +9,13 @@ declare var ADSK: any;
 
 @Injectable()
 export class C360ContextService {
-    constructor(private _c360Model: C360Model, private _logger: Logger) {
-        this._c360Model.initialize(this._manager.metadataStore);
+    private _c360Model: C360Model;
+    constructor() {
+        this._c360Model = new C360Model(this._manager.metadataStore);
     }
     
     // TODO: Require setting designKey at startup
-    private _designKey: string = '448799174180953474/jhf49gb8p443';        
+    private _designKey: string = '575458448649916390/2gn1dj1tslb4';        
     // TODO: Allow setting model adapter at startup
     private _modelAdapter = new DefaultModelAdapter();
     private _rootPart = null;
@@ -68,7 +68,7 @@ export class C360ContextService {
         let ctx = this;
         let promise = new Promise((resolve, reject) => {
             if (ctx._updateInProgress) {
-                ctx._logger.info('Unable to update property ' + name +
+                console.info('Unable to update property ' + name +
                     ' while another property is being updated');
 
                 reject();
@@ -100,7 +100,7 @@ export class C360ContextService {
 
             function onError(error) {
                 ctx._updateInProgress = false;      
-                ctx._logger.error('Error updating property');
+                console.error('Error updating property');
                 reject();
             }
         });
@@ -115,11 +115,11 @@ export class C360ContextService {
     executeAction(actionParams) {
         let ctx = this;
 
-        ctx._logger.info('Executing action ' + actionParams.name);        
+        console.info('Executing action ' + actionParams.name);        
         
         let promise = new Promise((resolve, reject) => {
             if (ctx._actionExecuting) {
-                ctx._logger.info('Unable to execute action ' + actionParams.name +
+                console.info('Unable to execute action ' + actionParams.name +
                     ' while another action is in progress');
 
                 reject();
@@ -174,7 +174,7 @@ export class C360ContextService {
 
             function onError(error) {
                 ctx._actionExecuting = false;
-                ctx._logger.error('Error occurred while executing action ' + actionParams.name);
+                console.error('Error occurred while executing action ' + actionParams.name);
                 reject(error);
             }            
         })

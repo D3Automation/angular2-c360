@@ -1,11 +1,8 @@
-import { Injectable } from '@angular/core';
-
 declare var breeze: any;
 declare var _: any;
 
-@Injectable()
 export class C360Model {
-    initialize(metadataStore) {
+    constructor(metadataStore:any) {
         var DT = breeze.DataType; // alias
 
         metadataStore.addEntityType({

@@ -1,12 +1,11 @@
 {
   "name": "angular2-c360",
-  "version": "0.0.2-beta.5",
+  "version": "0.0.3-alpha.1",
   "description": "Angular 2 services and components for working with Configurator 360",
   "author": "D3 Automation",
   "license": "MIT",
   "main": "angular2-c360.js",
   "scripts": {
-    "prepublish": "typings install",
     "build": "rimraf dist && tsc",    
     "postbuild": "copyfiles package.json README.md LICENSE .npmignore dist",
     "test": "tsc && karma start"
