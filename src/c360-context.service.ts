@@ -4,7 +4,6 @@ import { UIPart } from './ui-part';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
 
 declare var breeze: any;
-declare var jQuery: any;
 declare var ADSK: any;
 
 @Injectable()
@@ -145,8 +144,8 @@ export class C360ContextService {
                 
                 if (actionResult.url) {
                     // Download output
-                    var iframe = jQuery("<iframe src='" + actionResult.url + "' style='display: none;' ></iframe>");
-                    jQuery("body").append(iframe);
+                    var iframe = document.createElement("<iframe src='" + actionResult.url + "' style='display: none;' ></iframe>");
+                    document.getElementById("body").insertAdjacentElement("beforeend", iframe);
 
                     setTimeout(function() {
                         iframe.remove();    
@@ -219,10 +218,12 @@ export class C360ContextService {
     private initializeViewer(modelBlob?) {
         this.clearModel();
 
-        let viewerElement = jQuery('#' + this._viewerDivId);
-        if (viewerElement.length === 0) {
-            let body = jQuery('body');
-            viewerElement = jQuery('<div id="' + this._viewerDivId + '"></div>').prependTo(body);
+        let viewerElement = document.getElementById(this._viewerDivId);
+        if (!viewerElement) {
+            viewerElement = document.createElement("div");
+            viewerElement.setAttribute("id", this._viewerDivId);
+            
+            document.body.insertAdjacentElement("afterbegin", viewerElement);
         }
 
         let promise = new Promise((resolve, reject) => {
