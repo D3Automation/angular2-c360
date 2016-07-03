@@ -1,18 +1,11 @@
 import { Injectable, OnInit } from '@angular/core';
-import { C360Model } from './C360Model';
-import { UIPart } from './ui-part';
+import { UIPart } from './UIPart';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
 
-declare var breeze: any;
 declare var ADSK: any;
 
 @Injectable()
 export class C360ContextService {
-    private _c360Model: C360Model;
-    constructor() {
-        this._c360Model = new C360Model(this._manager.metadataStore);
-    }
-    
     // TODO: Require setting designKey at startup
     private _designKey: string = '575458448649916390/2gn1dj1tslb4';        
     // TODO: Allow setting model adapter at startup
@@ -22,7 +15,7 @@ export class C360ContextService {
     private _actionExecuting = false;
     private _isDirty = false;
     private _invalidCharacterPattern = /[\s\%\/\?\)\(\.\']/g;
-    private _manager = new breeze.EntityManager();
+    private _parts: Map<string, UIPart> = new Map<string, UIPart>();
     private _viewer = null;
     // TODO: Store viewer div id in constant
     private _viewerDivId = 'c360Viewer';
@@ -36,15 +29,15 @@ export class C360ContextService {
     }
 
     getParts() {
-        return this._manager.getEntities('UIPart');
+        return Array.from(this._parts.values());
     }
 
     getPartByRefChain(refChain) {
-        return this._manager.getEntityByKey('UIPart', refChain);
+        return this._parts.get(refChain);
     }
 
     getPartByUiProp(partType, propName, propValue) {
-        let part = null;
+/*        let part = null;
 
         // Use breeze to filter down to just parts of the correct type
         let query = breeze.EntityQuery
@@ -61,6 +54,10 @@ export class C360ContextService {
         }
 
         return part;
+*/
+        // TODO: Implement getPartByUiProp
+        alert("todo");
+        return null;
     }
 
     updateProperty(refChain, name, value) {
@@ -268,7 +265,6 @@ export class C360ContextService {
     }
 
     private updateModel(modelData) {
-        // Updated the entity manager with new/updated entities
         this.mergePart(modelData, modelData.parentRefChain);
 
         // Detach deleted entities
@@ -280,56 +276,58 @@ export class C360ContextService {
                         delete partToRemove.Parent[partToRemove.Name];
                     }
 
-                    this._manager.detachEntity(partToRemove);
+                    this._parts.delete(partToRemove.RefChain);
                 }
             })
         }
 
         // Post-process parts (add shortcut properties, action methods, etc.)
-        this.processParts(this._manager.getEntities('UIPart'))
+        this.processParts(this.getParts());
     }
 
     private mergePart(part: any, parentRefChain?: string) {
         let ctx = this;        
-        let childEntities = [];
         let isCompleteChangedPart = (part.isCompleteChangedPart == true);
-        let mergedEntity;
-        let initialValues = {
-            RefChain: part.refChain,
-            Name: part.Name,
-            PartType: part.PartType,
-            ParentRefChain: parentRefChain
-        };
+        let mergedPart: UIPart;
 
-        try {
-            mergedEntity = ctx._manager.createEntity('UIPart', initialValues, breeze.EntityState.Unchanged,
-                breeze.MergeStrategy.OverwriteChanges);
-        } catch (error) {
-            console.log(error);            
+        if (this._parts.get(part.refChain)) {
+            mergedPart = this._parts.get(part.refChain);
+        } else {
+            mergedPart = new UIPart();
+            mergedPart.RefChain = part.refChain;
+            this._parts.set(mergedPart.RefChain, mergedPart);
         }
 
-        if (!mergedEntity.UIProperties || isCompleteChangedPart) {
-            mergedEntity.UIProperties = [];
+        mergedPart.Name = part.Name;
+        mergedPart.PartType = part.PartType;
+
+        if (parentRefChain && this._parts.get(parentRefChain)) {
+            mergedPart.Parent = this._parts.get(parentRefChain);
+        }
+
+        if (!mergedPart.UIProperties || isCompleteChangedPart) {
+            mergedPart.UIProperties = [];
         }
 
         if (part.properties) {
             part.properties.forEach(function (prop) {
                 // TODO - Optimize this so that the first time a part is added its properties aren't searched
                 if (!isCompleteChangedPart) {
-                    for (var i = 0, len = mergedEntity.UIProperties.length; i < len; i++) {
-                        if (mergedEntity.UIProperties[i].FullName === prop.value.FullName) {
-                            mergedEntity.UIProperties.splice(i, 1);
+                    for (var i = 0, len = mergedPart.UIProperties.length; i < len; i++) {
+                        if (mergedPart.UIProperties[i].FullName === prop.value.FullName) {
+                            mergedPart.UIProperties.splice(i, 1);
                             break;
                         }
                     }
                 }
 
-                mergedEntity.UIProperties.push(transformProp(prop));
+                var tfm = transformProp(prop);
+                mergedPart.UIProperties.push(tfm);
             });
         }
 
-        mergedEntity.Messages = (part.Messages) ? part.Messages : [];
-        mergedEntity.Actions = (part.Actions) ? part.Actions : [];
+        mergedPart.Messages = (part.Messages) ? part.Messages : [];
+        mergedPart.Actions = (part.Actions) ? part.Actions : [];
 
         function transformProp(prop) {         
             let transformed = prop.value;
@@ -411,11 +409,15 @@ export class C360ContextService {
             return transformed;
         }
 
+        // TODO: Children array could probably be handled more efficiently
+        mergedPart.Children = [];
         if (part.children) {
             part.children.forEach((child) => {
-                ctx.mergePart(child, part.refChain);
+                mergedPart.Children.push(ctx.mergePart(child, part.refChain));
             });
         }
+
+        return mergedPart;
     }
 
     private processParts(parts) {
@@ -526,7 +528,7 @@ export class C360ContextService {
 
     private clearModel() {
         this._rootPart = null;
-        this._manager.clear();
+        this._parts.clear();
         this.setDirty(false);
 
         if (this._viewer) {

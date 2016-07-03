@@ -1,4 +1,4 @@
-import {UIPart} from './ui-part';
+import {UIPart} from './UIPart';
  
 export class DefaultModelAdapter {
         invalidCharacterReplacement: string = '';
