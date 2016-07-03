@@ -2,12 +2,7 @@ import { Component, Input, ElementRef, OnInit, OnDestroy } from '@angular/core';
 
 @Component({
   selector: 'c360-viewer',
-  template: '<div (window:resize)="onResize($event)"></div>',
-  styles: [`
-    position: absolute;
-    z-index: -1;'
-    `]
-})
+  template: '<div (window:resize)="onResize($event)"></div>'})
 export class C360ViewerComponent implements OnInit {
     // TODO: Move div id to constant
     private _compElement: HTMLElement;

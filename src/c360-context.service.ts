@@ -222,6 +222,8 @@ export class C360ContextService {
             
             document.body.insertAdjacentElement("afterbegin", viewerElement);
         }
+        viewerElement.style.position = "absolute";
+        viewerElement.style.zIndex = "-1";
 
         let promise = new Promise((resolve, reject) => {
             let viewerLoaded = (viewer) => {
