@@ -1,10 +1,10 @@
 import { Component, Input, ElementRef, OnInit, OnDestroy } from '@angular/core';
+import { Constants } from './Constants';
 
 @Component({
   selector: 'c360-viewer',
   template: '<div (window:resize)="onResize($event)"></div>'})
 export class C360ViewerComponent implements OnInit {
-    // TODO: Move div id to constant
     private _compElement: HTMLElement;
     private _viewerElement: HTMLElement;
     
@@ -13,7 +13,7 @@ export class C360ViewerComponent implements OnInit {
     }
     
     ngOnInit() {
-        this._viewerElement = document.getElementById('c360Viewer');
+        this._viewerElement = document.getElementById(Constants.ViewerDivId);
 
         // Wait for any other dynamic position to settle down first, then position viewer
         setTimeout(() => {

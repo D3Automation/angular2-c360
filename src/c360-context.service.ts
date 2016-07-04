@@ -2,6 +2,7 @@ import { Injectable, OnInit } from '@angular/core';
 import { UIPart } from './UIPart';
 import { IModelAdapter } from './IModelAdapter';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
+import { Constants } from './Constants';
 
 declare var ADSK: any;
 
@@ -16,8 +17,7 @@ export class C360ContextService {
     private _invalidCharacterPattern: RegExp = /[\s\%\/\?\)\(\.\']/g;
     private _parts: Map<string, UIPart> = new Map<string, UIPart>();
     private _viewer: any = null;
-    // TODO: Store viewer div id in constant
-    private _viewerDivId: string = 'c360Viewer';
+    private _lastError: any = null;
 
     getNewModel() {
         return this.initializeViewer();
@@ -96,6 +96,42 @@ export class C360ContextService {
             function onError(error) {
                 ctx._updateInProgress = false;      
                 console.error('Error updating property');
+                reject();
+            }
+        });
+
+        return promise;
+    }
+
+    updateProperties(properties: any) {
+        let ctx = this;
+        let promise = new Promise((resolve, reject) => {
+            if (ctx._updateInProgress) {
+                console.info('Unable to update properties' +
+                    ' while another property is being updated');
+
+                reject();
+            }
+
+            ctx._updateInProgress = true;      
+
+            ctx._viewer.setPropertyValues(properties, onSuccess, onError);
+            
+            function onSuccess(modelData) {
+                try {
+                    ctx.updateModel(modelData);
+                    ctx.setDirty(true);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    ctx._updateInProgress = false;      
+                }
+            }
+
+            function onError(error) {
+                ctx._updateInProgress = false;      
+                console.error('Error updating properties');
                 reject();
             }
         });
@@ -201,6 +237,10 @@ export class C360ContextService {
         return this._viewer;
     }
 
+    getLastError() {
+        return this._lastError;
+    }
+
     private initializeViewer(modelBlob?) {
         if (!this._designKey) {
             throw "Must set C360 design key";
@@ -208,10 +248,10 @@ export class C360ContextService {
 
         this.clearModel();
 
-        let viewerElement = document.getElementById(this._viewerDivId);
+        let viewerElement = document.getElementById(Constants.ViewerDivId);
         if (!viewerElement) {
             viewerElement = document.createElement("div");
-            viewerElement.setAttribute("id", this._viewerDivId);
+            viewerElement.setAttribute("id", Constants.ViewerDivId);
             
             document.body.insertAdjacentElement("afterbegin", viewerElement);
         }
@@ -227,8 +267,9 @@ export class C360ContextService {
                 });
             };
 
-            let failedToLoad = (result) => {
-                reject(result);
+            let failedToLoad = (viewer) => {
+                this._viewer = viewer;
+                reject(viewer.state);
             }
 
             let viewerOptions = {
@@ -251,6 +292,7 @@ export class C360ContextService {
                 if (result.compatible) {
                     c360.initViewer(viewerOptions);
                 } else {
+                    this._lastError = result.reason;
                     reject(result.reason);
                 }
             });
@@ -260,6 +302,7 @@ export class C360ContextService {
     }
 
     private updateModel(modelData) {
+        this.clearLastError();
         this.mergePart(modelData, modelData.parentRefChain);
 
         // Detach deleted entities
@@ -524,6 +567,7 @@ export class C360ContextService {
     private clearModel() {
         this._rootPart = null;
         this._parts.clear();
+        this.clearLastError();
         this.setDirty(false);
 
         if (this._viewer) {
@@ -542,5 +586,9 @@ export class C360ContextService {
 
     private onModelClosed() {
         this.clearModel();
-    }    
+    }
+
+    private clearLastError() {
+        this._lastError = null;
+    }
   }
