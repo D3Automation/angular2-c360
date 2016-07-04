@@ -1,7 +1,7 @@
 import { UIAction } from './UIAction';
 import { UIMessage } from './UIMessage';
 import { UIProperty } from './UIProperty';
- 
+
 export class UIPart {
     RefChain: string;
     Name: string;
@@ -12,12 +12,8 @@ export class UIPart {
     Parent: UIPart;
     Children: Array<UIPart>;
 
-    // TODO: Implement allMessages property
-/*    Object.defineProperty(entity, 'allMessages', {
-        enumerable: true,
-        configurable: false,
-        get: function () {
-            return entity.Messages.concat(_.flatten(_.pluck(entity.Children, 'allMessages')));
-        }
-    });    
-*/}
+    get AllMessages(): Array<UIMessage> {
+        return this.Children.map(child => { return child.AllMessages; }).reduce((prev, curr) =>
+            prev.concat(curr), this.Messages);
+    }
+}
