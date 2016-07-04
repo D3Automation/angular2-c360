@@ -6,8 +6,7 @@ declare var ADSK: any;
 
 @Injectable()
 export class C360ContextService {
-    // TODO: Require setting designKey at startup
-    private _designKey: string = '575458448649916390/2gn1dj1tslb4';        
+    private _designKey: string = null;        
     // TODO: Allow setting model adapter at startup
     private _modelAdapter = new DefaultModelAdapter();
     private _rootPart = null;
@@ -190,6 +189,10 @@ export class C360ContextService {
         return (this._rootPart !== null);
     }
 
+    setDesignKey(designKey: string) {
+        this._designKey = designKey;
+    }
+
     setModelAdapter(adapter) {
 /*        if (adapter.invalidCharacterReplacement && angular.isString(adapter.invalidCharacterReplacement)) {
             this._modelAdapter.invalidCharacterReplacement = adapter.invalidCharacterReplacement;
@@ -213,6 +216,10 @@ export class C360ContextService {
     }
 
     private initializeViewer(modelBlob?) {
+        if (!this._designKey) {
+            throw "Must set C360 design key";
+        }
+
         this.clearModel();
 
         let viewerElement = document.getElementById(this._viewerDivId);
