@@ -1,5 +1,6 @@
 import { Injectable, OnInit } from '@angular/core';
 import { UIPart } from './UIPart';
+import { IModelAdapter } from './IModelAdapter';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
 
 declare var ADSK: any;
@@ -7,17 +8,16 @@ declare var ADSK: any;
 @Injectable()
 export class C360ContextService {
     private _designKey: string = null;        
-    // TODO: Allow setting model adapter at startup
-    private _modelAdapter = new DefaultModelAdapter();
-    private _rootPart = null;
-    private _updateInProgress = false;
-    private _actionExecuting = false;
-    private _isDirty = false;
-    private _invalidCharacterPattern = /[\s\%\/\?\)\(\.\']/g;
+    private _modelAdapter: IModelAdapter = new DefaultModelAdapter();
+    private _rootPart: UIPart = null;
+    private _updateInProgress: boolean = false;
+    private _actionExecuting: boolean = false;
+    private _isDirty: boolean = false;
+    private _invalidCharacterPattern: RegExp = /[\s\%\/\?\)\(\.\']/g;
     private _parts: Map<string, UIPart> = new Map<string, UIPart>();
-    private _viewer = null;
+    private _viewer: any = null;
     // TODO: Store viewer div id in constant
-    private _viewerDivId = 'c360Viewer';
+    private _viewerDivId: string = 'c360Viewer';
 
     getNewModel() {
         return this.initializeViewer();
@@ -193,23 +193,9 @@ export class C360ContextService {
         this._designKey = designKey;
     }
 
-    setModelAdapter(adapter) {
-/*        if (adapter.invalidCharacterReplacement && angular.isString(adapter.invalidCharacterReplacement)) {
-            this._modelAdapter.invalidCharacterReplacement = adapter.invalidCharacterReplacement;
-        }
-
-        if (adapter.visitPart && angular.isFunction(adapter.visitPart)) {
-            this._modelAdapter.visitPart = adapter.visitPart;
-        }
-
-        if (adapter.isPartCollection && angular.isFunction(adapter.isPartCollection)) {
-            this._modelAdapter.isPartCollection = adapter.isPartCollection;
-        }
-
-        if (adapter.parseCollectionName && angular.isFunction(adapter.parseCollectionName)) {
-            this._modelAdapter.parseCollectionName = adapter.parseCollectionName;
-        }
-*/    }
+    setModelAdapter(modelAdapter: IModelAdapter) {
+        this._modelAdapter = modelAdapter;
+    }
 
     getViewer() {
         return this._viewer;

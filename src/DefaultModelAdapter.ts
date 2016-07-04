@@ -1,6 +1,7 @@
 import {UIPart} from './UIPart';
+import {IModelAdapter} from './IModelAdapter';
  
-export class DefaultModelAdapter {
+export class DefaultModelAdapter implements IModelAdapter {
         invalidCharacterReplacement: string = '';
 
         isPartCollection(part: UIPart) {
