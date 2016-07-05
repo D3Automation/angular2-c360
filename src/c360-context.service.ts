@@ -330,6 +330,9 @@ export class C360ContextService {
 
         if (this.parts.get(part.refChain)) {
             mergedPart = this.parts.get(part.refChain);
+
+            // Remove functions on existing part that executed each action
+            mergedPart.Actions.forEach(a => delete mergedPart[a.Name]);
         } else {
             mergedPart = new UIPart();
             mergedPart.RefChain = part.refChain;

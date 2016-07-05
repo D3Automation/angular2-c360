@@ -1,3 +1,6 @@
 export class UIAction {
-    FullName: string;
+    Name: string;
+    Category: string;
+    MenuText: string;
+    ToolTip: string;
 }
