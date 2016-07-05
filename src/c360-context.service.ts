@@ -19,47 +19,27 @@ export class C360ContextService {
     private viewer: any = null;
     private lastError: any = null;
 
-    getNewModel() {
+    getNewModel(): Promise<UIPart> {
         return this.initializeViewer();
     }
 
-    getRoot() {
+    loadModel(modelBlob: any): Promise<UIPart> {
+        return this.initializeViewer(modelBlob);
+    }
+
+    getRoot(): UIPart {
         return this.rootPart;
     }
 
-    getParts() {
+    getParts(): Array<UIPart> {
         return Array.from(this.parts.values());
     }
 
-    getPartByRefChain(refChain) {
+    getPartByRefChain(refChain): UIPart {
         return this.parts.get(refChain);
     }
 
-    getPartByUiProp(partType, propName, propValue) {
-/*        let part = null;
-
-        // Use breeze to filter down to just parts of the correct type
-        let query = breeze.EntityQuery
-            .from('UIParts')
-            .toType('UIPart')
-            .where('PartType', '==', partType);
-        let partsOfType = this._manager.executeQueryLocally(query);
-
-        // Now filter to just the parts that match the UiProp
-        let matchingParts = partsOfType.filter(function (p) { return p[propName] === propValue; })
-
-        if (matchingParts.length > 0) {
-            part = matchingParts[0];
-        }
-
-        return part;
-*/
-        // TODO: Implement getPartByUiProp
-        alert("todo");
-        return null;
-    }
-
-    updateProperty(refChain, name, value) {
+    updateProperty(refChain, name, value): Promise<void> | Promise<string> {
         let ctx = this;
         let promise = new Promise((resolve, reject) => {
             if (ctx.updateInProgress) {
@@ -103,7 +83,7 @@ export class C360ContextService {
         return promise;
     }
 
-    updateProperties(properties: any) {
+    updateProperties(properties: any): Promise<void> | Promise<string> {
         let ctx = this;
         let promise = new Promise((resolve, reject) => {
             if (ctx.updateInProgress) {
@@ -139,11 +119,11 @@ export class C360ContextService {
         return promise;
     }
 
-    resetProperty(refChain, name) {
+    resetProperty(refChain, name): Promise<void> | Promise<string> {
         return this.updateProperty(refChain, name, null);
     }
 
-    executeAction(actionParams) {
+    executeAction(actionParams): Promise<void> | Promise<string> {
         let ctx = this;
 
         console.info('Executing action ' + actionParams.name);        
@@ -241,7 +221,7 @@ export class C360ContextService {
         return this.lastError;
     }
 
-    private initializeViewer(modelBlob?) {
+    private initializeViewer(modelBlob?): Promise<UIPart> {
         if (!this.designKey) {
             throw "Must set C360 design key";
         }
