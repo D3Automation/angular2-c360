@@ -8,31 +8,31 @@ declare var ADSK: any;
 
 @Injectable()
 export class C360ContextService {
-    private _designKey: string = null;        
-    private _modelAdapter: IModelAdapter = new DefaultModelAdapter();
-    private _rootPart: UIPart = null;
-    private _updateInProgress: boolean = false;
-    private _actionExecuting: boolean = false;
-    private _isDirty: boolean = false;
-    private _invalidCharacterPattern: RegExp = /[\s\%\/\?\)\(\.\']/g;
-    private _parts: Map<string, UIPart> = new Map<string, UIPart>();
-    private _viewer: any = null;
-    private _lastError: any = null;
+    private designKey: string = null;        
+    private modelAdapter: IModelAdapter = new DefaultModelAdapter();
+    private rootPart: UIPart = null;
+    private updateInProgress: boolean = false;
+    private actionExecuting: boolean = false;
+    private dirty: boolean = false;
+    private invalidCharacterPattern: RegExp = /[\s\%\/\?\)\(\.\']/g;
+    private parts: Map<string, UIPart> = new Map<string, UIPart>();
+    private viewer: any = null;
+    private lastError: any = null;
 
     getNewModel() {
         return this.initializeViewer();
     }
 
     getRoot() {
-        return this._rootPart;
+        return this.rootPart;
     }
 
     getParts() {
-        return Array.from(this._parts.values());
+        return Array.from(this.parts.values());
     }
 
     getPartByRefChain(refChain) {
-        return this._parts.get(refChain);
+        return this.parts.get(refChain);
     }
 
     getPartByUiProp(partType, propName, propValue) {
@@ -62,16 +62,16 @@ export class C360ContextService {
     updateProperty(refChain, name, value) {
         let ctx = this;
         let promise = new Promise((resolve, reject) => {
-            if (ctx._updateInProgress) {
+            if (ctx.updateInProgress) {
                 console.info('Unable to update property ' + name +
                     ' while another property is being updated');
 
                 reject();
             }
 
-            ctx._updateInProgress = true;      
+            ctx.updateInProgress = true;      
 
-            ctx._viewer.setPropertyValues({
+            ctx.viewer.setPropertyValues({
                 refChain: refChain,
                 properties: [
                     {
@@ -89,12 +89,12 @@ export class C360ContextService {
                 } catch (error) {
                     reject(error);
                 } finally {
-                    ctx._updateInProgress = false;      
+                    ctx.updateInProgress = false;      
                 }
             }
 
             function onError(error) {
-                ctx._updateInProgress = false;      
+                ctx.updateInProgress = false;      
                 console.error('Error updating property');
                 reject();
             }
@@ -106,16 +106,16 @@ export class C360ContextService {
     updateProperties(properties: any) {
         let ctx = this;
         let promise = new Promise((resolve, reject) => {
-            if (ctx._updateInProgress) {
+            if (ctx.updateInProgress) {
                 console.info('Unable to update properties' +
                     ' while another property is being updated');
 
                 reject();
             }
 
-            ctx._updateInProgress = true;      
+            ctx.updateInProgress = true;      
 
-            ctx._viewer.setPropertyValues(properties, onSuccess, onError);
+            ctx.viewer.setPropertyValues(properties, onSuccess, onError);
             
             function onSuccess(modelData) {
                 try {
@@ -125,12 +125,12 @@ export class C360ContextService {
                 } catch (error) {
                     reject(error);
                 } finally {
-                    ctx._updateInProgress = false;      
+                    ctx.updateInProgress = false;      
                 }
             }
 
             function onError(error) {
-                ctx._updateInProgress = false;      
+                ctx.updateInProgress = false;      
                 console.error('Error updating properties');
                 reject();
             }
@@ -149,17 +149,17 @@ export class C360ContextService {
         console.info('Executing action ' + actionParams.name);        
         
         let promise = new Promise((resolve, reject) => {
-            if (ctx._actionExecuting) {
+            if (ctx.actionExecuting) {
                 console.info('Unable to execute action ' + actionParams.name +
                     ' while another action is in progress');
 
                 reject();
             }
 
-            ctx._actionExecuting = true;
+            ctx.actionExecuting = true;
             
             if (actionParams.params) {
-                ctx._viewer.setPropertyValues({ uiActionParams: JSON.stringify(actionParams.params) }, function () {
+                ctx.viewer.setPropertyValues({ uiActionParams: JSON.stringify(actionParams.params) }, function () {
                     doExecute()
                 });
             }
@@ -168,11 +168,11 @@ export class C360ContextService {
             }
 
             function doExecute() {
-                ctx._viewer.executeAction(actionParams, onSuccess, onError)
+                ctx.viewer.executeAction(actionParams, onSuccess, onError)
             }
 
             function onSuccess(actionResult) {
-                ctx._actionExecuting = false;
+                ctx.actionExecuting = false;
                 
                 if (actionResult.url) {
                     // Download output
@@ -204,7 +204,7 @@ export class C360ContextService {
             }
 
             function onError(error) {
-                ctx._actionExecuting = false;
+                ctx.actionExecuting = false;
                 console.error('Error occurred while executing action ' + actionParams.name);
                 reject(error);
             }            
@@ -217,32 +217,32 @@ export class C360ContextService {
         this.clearModel();
     }
 
-    isDirty() {
-        return this._isDirty;
+    get isDirty(): boolean {
+        return this.dirty;
     }
 
     isModelLoaded() {
-        return (this._rootPart !== null);
+        return (this.rootPart !== null);
     }
 
     setDesignKey(designKey: string) {
-        this._designKey = designKey;
+        this.designKey = designKey;
     }
 
     setModelAdapter(modelAdapter: IModelAdapter) {
-        this._modelAdapter = modelAdapter;
+        this.modelAdapter = modelAdapter;
     }
 
     getViewer() {
-        return this._viewer;
+        return this.viewer;
     }
 
     getLastError() {
-        return this._lastError;
+        return this.lastError;
     }
 
     private initializeViewer(modelBlob?) {
-        if (!this._designKey) {
+        if (!this.designKey) {
             throw "Must set C360 design key";
         }
 
@@ -260,21 +260,21 @@ export class C360ContextService {
 
         let promise = new Promise((resolve, reject) => {
             let viewerLoaded = (viewer) => {
-                this._viewer = viewer;
-                this._viewer.getPropertyValues(null, (modelData) => {
+                this.viewer = viewer;
+                this.viewer.getPropertyValues(null, (modelData) => {
                     this.updateModel(modelData);
-                    resolve(this._rootPart);
+                    resolve(this.rootPart);
                 });
             };
 
             let failedToLoad = (viewer) => {
-                this._viewer = viewer;
+                this.viewer = viewer;
                 reject(viewer.state);
             }
 
             let viewerOptions = {
                 container: viewerElement,
-                design: this._designKey,
+                design: this.designKey,
                 panes: false,
                 success: viewerLoaded,
                 error: failedToLoad,
@@ -292,7 +292,7 @@ export class C360ContextService {
                 if (result.compatible) {
                     c360.initViewer(viewerOptions);
                 } else {
-                    this._lastError = result.reason;
+                    this.lastError = result.reason;
                     reject(result.reason);
                 }
             });
@@ -314,7 +314,7 @@ export class C360ContextService {
                         delete partToRemove.Parent[partToRemove.Name];
                     }
 
-                    this._parts.delete(partToRemove.RefChain);
+                    this.parts.delete(partToRemove.RefChain);
                 }
             })
         }
@@ -328,19 +328,19 @@ export class C360ContextService {
         let isCompleteChangedPart = (part.isCompleteChangedPart == true);
         let mergedPart: UIPart;
 
-        if (this._parts.get(part.refChain)) {
-            mergedPart = this._parts.get(part.refChain);
+        if (this.parts.get(part.refChain)) {
+            mergedPart = this.parts.get(part.refChain);
         } else {
             mergedPart = new UIPart();
             mergedPart.RefChain = part.refChain;
-            this._parts.set(mergedPart.RefChain, mergedPart);
+            this.parts.set(mergedPart.RefChain, mergedPart);
         }
 
         mergedPart.Name = part.Name;
         mergedPart.PartType = part.PartType;
 
-        if (parentRefChain && this._parts.get(parentRefChain)) {
-            mergedPart.Parent = this._parts.get(parentRefChain);
+        if (parentRefChain && this.parts.get(parentRefChain)) {
+            mergedPart.Parent = this.parts.get(parentRefChain);
         }
 
         if (!mergedPart.UIProperties || isCompleteChangedPart) {
@@ -463,14 +463,14 @@ export class C360ContextService {
         parts.forEach((part) => this.processPart(part));
 
         // Now allow for custom processing
-        parts.forEach((part) => this._modelAdapter.visitPart(part));
+        parts.forEach((part) => this.modelAdapter.visitPart(part));
     }
     
     private processPart(part) {
         let ctx = this;
 
         if (part.RefChain === 'Root') {
-            ctx._rootPart = part;
+            ctx.rootPart = part;
         }
 
         let propSuffix = '_Prop';
@@ -486,7 +486,7 @@ export class C360ContextService {
 
         // Add properties for each UI Property and reset function on each UI Property
         part.UIProperties.forEach((uiProp) => {
-            var valuePropName = uiProp.FullName.replace(ctx._invalidCharacterPattern, ctx._modelAdapter.invalidCharacterReplacement);
+            var valuePropName = uiProp.FullName.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
             var prop = uiProp;
 
             // Add property that points to UI Property
@@ -524,7 +524,7 @@ export class C360ContextService {
 
         // Add properties as shortcuts to each child
         part.Children.forEach((uiChild) => {
-            var childName = uiChild.Name.replace(ctx._invalidCharacterPattern, ctx._modelAdapter.invalidCharacterReplacement);
+            var childName = uiChild.Name.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
             var child = uiChild;
 
             Object.defineProperty(part, childName, {
@@ -537,8 +537,8 @@ export class C360ContextService {
         });
 
         // Add shortcut to collection's children if applicable
-        if (ctx._modelAdapter.isPartCollection(part)) {
-            var collectionName = ctx._modelAdapter.parseCollectionName(part.Name);
+        if (ctx.modelAdapter.isPartCollection(part)) {
+            var collectionName = ctx.modelAdapter.parseCollectionName(part.Name);
 
             Object.defineProperty(part.Parent, collectionName, {
                 get: function () {
@@ -565,19 +565,19 @@ export class C360ContextService {
     }
 
     private clearModel() {
-        this._rootPart = null;
-        this._parts.clear();
+        this.rootPart = null;
+        this.parts.clear();
         this.clearLastError();
         this.setDirty(false);
 
-        if (this._viewer) {
-            this._viewer.unload();
-            this._viewer = null;
+        if (this.viewer) {
+            this.viewer.unload();
+            this.viewer = null;
         }
     }
 
     private setDirty(dirty: boolean) {
-        this._isDirty = dirty;
+        this.dirty = dirty;
     }
 
     private onSessionEnded() {
@@ -589,6 +589,6 @@ export class C360ContextService {
     }
 
     private clearLastError() {
-        this._lastError = null;
+        this.lastError = null;
     }
   }

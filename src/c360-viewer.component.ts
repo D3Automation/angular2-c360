@@ -5,15 +5,15 @@ import { Constants } from './Constants';
   selector: 'c360-viewer',
   template: '<div (window:resize)="onResize($event)"></div>'})
 export class C360ViewerComponent implements OnInit {
-    private _compElement: HTMLElement;
-    private _viewerElement: HTMLElement;
+    private componentElement: HTMLElement;
+    private viewerElement: HTMLElement;
     
     constructor(el: ElementRef) {
-        this._compElement = el.nativeElement;
+        this.componentElement = el.nativeElement;        
     }
     
     ngOnInit() {
-        this._viewerElement = document.getElementById(Constants.ViewerDivId);
+        this.viewerElement = document.getElementById(Constants.ViewerDivId);
 
         // Wait for any other dynamic position to settle down first, then position viewer
         setTimeout(() => {
@@ -22,11 +22,11 @@ export class C360ViewerComponent implements OnInit {
     }
     
     ngOnDestroy() {
-        this._viewerElement.style.top = "0";
-        this._viewerElement.style.left = "0";
+        this.viewerElement.style.top = "0";
+        this.viewerElement.style.left = "0";
         // Use z-index rather than visibility to hide/show, since the viewer apparently
         //  doesn't updated itself when hidden
-        this._viewerElement.style.zIndex = "-1";
+        this.viewerElement.style.zIndex = "-1";
     }
     
     onResize(event) {
@@ -34,18 +34,18 @@ export class C360ViewerComponent implements OnInit {
     }
 
     private positionViewer() {
-        let widthPx = this._compElement.clientWidth + "px";
-        let heightPx = this._compElement.clientHeight + "px";
+        let widthPx = this.componentElement.clientWidth + "px";
+        let heightPx = this.componentElement.clientHeight + "px";
 
         // Use z-index rather than visibility to hide/show, since the viewer apparently
         //  doesn't updated itself when hidden
-        this._viewerElement.style.zIndex = "1";
-        this._viewerElement.style.top = this._compElement.offsetTop + "px";
-        this._viewerElement.style.left = this._compElement.offsetLeft + "px";
-        this._viewerElement.style.width = widthPx;
-        this._viewerElement.style.height = heightPx;
+        this.viewerElement.style.zIndex = "1";
+        this.viewerElement.style.top = this.componentElement.offsetTop + "px";
+        this.viewerElement.style.left = this.componentElement.offsetLeft + "px";
+        this.viewerElement.style.width = widthPx;
+        this.viewerElement.style.height = heightPx;
 
-        let iFrame = <HTMLElement>this._viewerElement.firstElementChild;
+        let iFrame = <HTMLElement>this.viewerElement.firstElementChild;
         iFrame.style.width = widthPx;
         iFrame.style.height = heightPx;
     }
