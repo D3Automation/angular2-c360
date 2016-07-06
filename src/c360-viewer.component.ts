@@ -1,5 +1,5 @@
 import { Component, Input, ElementRef, OnInit, OnDestroy } from '@angular/core';
-import { Constants } from './Constants';
+import { ViewerDivId } from './constants';
 
 @Component({
   selector: 'c360-viewer',
@@ -13,7 +13,7 @@ export class C360ViewerComponent implements OnInit {
     }
     
     ngOnInit() {
-        this.viewerElement = document.getElementById(Constants.ViewerDivId);
+        this.viewerElement = document.getElementById(ViewerDivId);
 
         // Wait for any other dynamic position to settle down first, then position viewer
         setTimeout(() => {

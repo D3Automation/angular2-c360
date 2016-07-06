@@ -1,29 +1,36 @@
 import { Injectable, OnInit } from '@angular/core';
+import { Observable } from 'rxjs/observable';
+import 'rxjs/add/operator/take';
+import { Subject } from 'rxjs/subject';
 import { UIPart } from './UIPart';
 import { IModelAdapter } from './IModelAdapter';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
-import { Constants } from './Constants';
+import { ViewerDivId } from './constants';
 
 declare var ADSK: any;
 
 @Injectable()
 export class C360ContextService {
-    private designKey: string = null;        
+    private designKey: string = undefined;        
     private modelAdapter: IModelAdapter = new DefaultModelAdapter();
+    private actionParamsPropName: string = "uiActionParams";
+
     private rootPart: UIPart = null;
     private updateInProgress: boolean = false;
-    private actionExecuting: boolean = false;
     private dirty: boolean = false;
     private invalidCharacterPattern: RegExp = /[\s\%\/\?\)\(\.\']/g;
     private parts: Map<string, UIPart> = new Map<string, UIPart>();
     private viewer: any = null;
     private lastError: any = null;
 
-    getNewModel(): Promise<UIPart> {
+    model: Subject<UIPart> = new Subject<UIPart>();
+    modelActivities: Subject<Observable<any>> = new Subject<Observable<any>>();
+
+    getNewModel(): Observable<UIPart> {
         return this.initializeViewer();
     }
 
-    loadModel(modelBlob: any): Promise<UIPart> {
+    loadModel(modelBlob: any): Observable<UIPart> {
         return this.initializeViewer(modelBlob);
     }
 
@@ -39,161 +46,78 @@ export class C360ContextService {
         return this.parts.get(refChain);
     }
 
-    updateProperty(refChain, name, value): Promise<void> | Promise<string> {
-        let ctx = this;
-        let promise = new Promise((resolve, reject) => {
-            if (ctx.updateInProgress) {
-                console.info('Unable to update property ' + name +
-                    ' while another property is being updated');
-
-                reject();
-            }
-
-            ctx.updateInProgress = true;      
-
-            ctx.viewer.setPropertyValues({
-                refChain: refChain,
-                properties: [
-                    {
-                        name: name,
-                        value: value
-                    }
-                ]
-            }, onSuccess, onError);
-            
-            function onSuccess(modelData) {
-                try {
-                    ctx.updateModel(modelData);
-                    ctx.setDirty(true);
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                } finally {
-                    ctx.updateInProgress = false;      
+    updateProperty(refChain, name, value): Observable<void> {
+        return this.updateProperties({
+            refChain: refChain,
+            properties: [
+                {
+                    name: name,
+                    value: value
                 }
-            }
-
-            function onError(error) {
-                ctx.updateInProgress = false;      
-                console.error('Error updating property');
-                reject();
-            }
+            ]
         });
-
-        return promise;
     }
 
-    updateProperties(properties: any): Promise<void> | Promise<string> {
-        let ctx = this;
-        let promise = new Promise((resolve, reject) => {
-            if (ctx.updateInProgress) {
-                console.info('Unable to update properties' +
-                    ' while another property is being updated');
+    updateProperties(properties: any): Observable<void> {
+        let propSubject = new Subject<void>();
+        this.modelActivities.next(propSubject);
 
-                reject();
+        if (this.updateInProgress) {
+            propSubject.error('Unable to update model properties while an update is already in progress');
+            return propSubject;
+        }
+
+        this.updateInProgress = true;      
+
+        this.viewer.setPropertyValues(properties, modelData => {
+            try {
+                this.updateModel(modelData);
+                this.setDirty(true);
+                propSubject.complete();
+            } catch (error) {
+                propSubject.error(error);
+            } finally {
+                this.updateInProgress = false;      
             }
-
-            ctx.updateInProgress = true;      
-
-            ctx.viewer.setPropertyValues(properties, onSuccess, onError);
-            
-            function onSuccess(modelData) {
-                try {
-                    ctx.updateModel(modelData);
-                    ctx.setDirty(true);
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                } finally {
-                    ctx.updateInProgress = false;      
-                }
-            }
-
-            function onError(error) {
-                ctx.updateInProgress = false;      
-                console.error('Error updating properties');
-                reject();
-            }
+        }, err => {
+            this.updateInProgress = false;      
+            propSubject.error(err);
         });
-
-        return promise;
+        
+        return propSubject;
     }
 
-    resetProperty(refChain, name): Promise<void> | Promise<string> {
+    resetProperty(refChain, name): Observable<void> {
         return this.updateProperty(refChain, name, null);
     }
 
-    executeAction(actionParams): Promise<void> | Promise<string> {
-        let ctx = this;
-
-        console.info('Executing action ' + actionParams.name);        
+    executeAction(actionParams): Observable<any> {
+        let actionSubject = new Subject<any>();
+        this.modelActivities.next(actionSubject);
         
-        let promise = new Promise((resolve, reject) => {
-            if (ctx.actionExecuting) {
-                console.info('Unable to execute action ' + actionParams.name +
-                    ' while another action is in progress');
+        if (this.updateInProgress) {
+            actionSubject.error('Unable to execute action while an update is already in progress');
+            return actionSubject;
+        }
 
-                reject();
-            }
+        this.updateInProgress = true;
+        
+        if (actionParams.params) {
+            let actionParamPropData = {};
+            actionParamPropData[this.actionParamsPropName] = JSON.stringify(actionParams.params);
+            this.viewer.setPropertyValues(actionParamPropData,
+                () => this.finishExecuteAction(actionParams, actionSubject),
+                err => actionSubject.error(err));
+        }
+        else {
+            this.finishExecuteAction(actionParams, actionSubject);
+        }
 
-            ctx.actionExecuting = true;
-            
-            if (actionParams.params) {
-                ctx.viewer.setPropertyValues({ uiActionParams: JSON.stringify(actionParams.params) }, function () {
-                    doExecute()
-                });
-            }
-            else {
-                doExecute();
-            }
-
-            function doExecute() {
-                ctx.viewer.executeAction(actionParams, onSuccess, onError)
-            }
-
-            function onSuccess(actionResult) {
-                ctx.actionExecuting = false;
-                
-                if (actionResult.url) {
-                    // Download output
-                    var iframe = document.createElement("<iframe src='" + actionResult.url + "' style='display: none;' ></iframe>");
-                    document.getElementById("body").insertAdjacentElement("beforeend", iframe);
-
-                    setTimeout(function() {
-                        iframe.remove();    
-                    }, 1000);                       
-                    
-                    resolve();
-                }
-                else if (actionResult.title && actionResult.message) {
-                    let message = null;
-
-                    try {
-                        message = JSON.parse(actionResult.message);
-                    } catch (e) {
-                        message = actionResult.message;
-                    }
-
-                    resolve(message);
-                }
-                else {
-                    ctx.updateModel(actionResult);
-                    ctx.setDirty(true);
-                    resolve();
-                }
-            }
-
-            function onError(error) {
-                ctx.actionExecuting = false;
-                console.error('Error occurred while executing action ' + actionParams.name);
-                reject(error);
-            }            
-        })
-
-        return promise;
+        return actionSubject;
     }
 
     endSession() {
+        if (this.model) { this.model.complete(); }
         this.clearModel();
     }
 
@@ -205,10 +129,12 @@ export class C360ContextService {
         return (this.rootPart !== null);
     }
 
+    // TODO: Handle setDesignKey with DI
     setDesignKey(designKey: string) {
         this.designKey = designKey;
     }
 
+    // TODO: Handle setModelAdapter with DI
     setModelAdapter(modelAdapter: IModelAdapter) {
         this.modelAdapter = modelAdapter;
     }
@@ -221,64 +147,67 @@ export class C360ContextService {
         return this.lastError;
     }
 
-    private initializeViewer(modelBlob?): Promise<UIPart> {
+    private initializeViewer(modelBlob?): Observable<UIPart> {
+        if (!this.model) { this.model = new Subject<UIPart>();}
+
         if (!this.designKey) {
-            throw "Must set C360 design key";
+            this.model.error("Must set C360 design key");
+            return this.model;
         }
 
-        this.clearModel();
-
-        let viewerElement = document.getElementById(Constants.ViewerDivId);
+        let viewerElement = document.getElementById(ViewerDivId);
         if (!viewerElement) {
             viewerElement = document.createElement("div");
-            viewerElement.setAttribute("id", Constants.ViewerDivId);
+            viewerElement.setAttribute("id", ViewerDivId);
             
             document.body.insertAdjacentElement("afterbegin", viewerElement);
         }
         viewerElement.style.position = "absolute";
         viewerElement.style.zIndex = "-1";
 
-        let promise = new Promise((resolve, reject) => {
-            let viewerLoaded = (viewer) => {
-                this.viewer = viewer;
-                this.viewer.getPropertyValues(null, (modelData) => {
-                    this.updateModel(modelData);
-                    resolve(this.rootPart);
-                });
-            };
+        this.clearModel();
 
-            let failedToLoad = (viewer) => {
-                this.viewer = viewer;
-                reject(viewer.state);
-            }
-
-            let viewerOptions = {
-                container: viewerElement,
-                design: this.designKey,
-                panes: false,
-                success: viewerLoaded,
-                error: failedToLoad,
-                verbose: true,
-                openFromFile: null
-            }
-
-            if (modelBlob) {
-                viewerOptions.openFromFile = modelBlob;
-            }
-
-            // Check client compatibility and load the viewer if compatible.
-            let c360 = window.ADSK && window.ADSK.C360;
-            c360.checkCompatibility((result) => {
-                if (result.compatible) {
-                    c360.initViewer(viewerOptions);
-                } else {
-                    this.lastError = result.reason;
-                    reject(result.reason);
-                }
+        let viewerLoaded = (viewer) => {
+            this.viewer = viewer;
+            this.viewer.getPropertyValues(null, (modelData) => {
+                this.updateModel(modelData);
+                this.model.next(this.rootPart);
             });
+        };
+
+        let failedToLoad = (viewer) => {
+            this.viewer = viewer;
+            this.model.error(viewer.state);
+        }
+
+        let viewerOptions = {
+            container: viewerElement,
+            design: this.designKey,
+            panes: false,
+            success: viewerLoaded,
+            error: failedToLoad,
+            verbose: true,
+            openFromFile: null
+        }
+
+        if (modelBlob) {
+            viewerOptions.openFromFile = modelBlob;
+        }
+
+        // Check client compatibility and load the viewer if compatible.
+        let c360 = window.ADSK && window.ADSK.C360;
+        c360.checkCompatibility((result) => {
+            if (result.compatible) {
+                c360.initViewer(viewerOptions);
+            } else {
+                this.lastError = result.reason;
+                this.model.error(result.reason);
+            }
         });
 
-        return promise;
+        this.modelActivities.next(this.model.take(1));
+
+        return this.model;
     }
 
     private updateModel(modelData) {
@@ -545,6 +474,44 @@ export class C360ContextService {
                 };
             });
         }
+    }
+
+    private finishExecuteAction(actionParams: any, subject: Subject<any>): void {
+        this.viewer.executeAction(actionParams, result => {
+            this.updateInProgress = false;
+            
+            if (result.url) {
+                // Download output
+                let iframe = document.createElement("iframe");
+                iframe.setAttribute("src", result.url);
+                iframe.style.display = "none";
+                document.body.insertAdjacentElement("beforeend", iframe);
+
+                setTimeout(function() {
+                    iframe.remove();    
+                }, 1000);                       
+            }
+            else if (result.title && result.message) {
+                let message = null;
+
+                try {
+                    message = JSON.parse(result.message);
+                } catch (e) {
+                    message = result.message;
+                }
+
+                subject.next(message);
+            }
+            else {
+                this.updateModel(result);
+                this.setDirty(true);
+            }
+
+            subject.complete();
+        }, err => {
+            this.updateInProgress = false;
+            subject.error('Error occurred while executing action ' + actionParams.name);
+        });
     }
 
     private clearModel() {

@@ -1,3 +1,1 @@
-export class Constants {
-    static ViewerDivId: string = "c360Viewer";
-}
+export const ViewerDivId: string = "c360Viewer";
