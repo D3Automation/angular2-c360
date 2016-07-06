@@ -1,10 +1,10 @@
-import { Component, Input, ElementRef, OnInit, OnDestroy } from '@angular/core';
+import { Component, ElementRef, OnInit, OnDestroy } from '@angular/core';
 import { ViewerDivId } from './constants';
 
 @Component({
   selector: 'c360-viewer',
   template: '<div (window:resize)="onResize($event)"></div>'})
-export class C360ViewerComponent implements OnInit {
+export class C360ViewerComponent implements OnInit, OnDestroy {
     private componentElement: HTMLElement;
     private viewerElement: HTMLElement;
     
