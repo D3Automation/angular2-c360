@@ -4,6 +4,7 @@ import 'rxjs/add/operator/take';
 import { Subject } from 'rxjs/subject';
 import { ReplaySubject } from 'rxjs/replaysubject';
 import { UIPart } from './UIPart';
+import { UIProperty } from './UIProperty';
 import { IModelAdapter } from './IModelAdapter';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
 import { ViewerDivId } from './constants';
@@ -118,7 +119,10 @@ export class C360ContextService {
     }
 
     endSession() {
-        if (this.model) { this.model.complete(); }
+        if (this.model) {
+            this.model.complete();
+            this.model = undefined;
+        }
         this.clearModel();
     }
 
@@ -265,104 +269,23 @@ export class C360ContextService {
         }
 
         if (part.properties) {
-            part.properties.forEach(function (prop) {
+            part.properties.forEach(prop => {
                 // TODO - Optimize this so that the first time a part is added its properties aren't searched
                 if (!isCompleteChangedPart) {
                     for (var i = 0, len = mergedPart.UIProperties.length; i < len; i++) {
-                        if (mergedPart.UIProperties[i].FullName === prop.value.FullName) {
+                        if (mergedPart.UIProperties[i].fullName === prop.value.FullName) {
                             mergedPart.UIProperties.splice(i, 1);
                             break;
                         }
                     }
                 }
 
-                var tfm = transformProp(prop);
-                mergedPart.UIProperties.push(tfm);
+                mergedPart.UIProperties.push(new UIProperty(this, mergedPart, prop.value));
             });
         }
 
         mergedPart.Messages = (part.Messages) ? part.Messages : [];
         mergedPart.Actions = (part.Actions) ? part.Actions : [];
-
-        function transformProp(prop) {         
-            let transformed = prop.value;
-
-            try {
-                let toolTipObject = JSON.parse(transformed.Tooltip);
-
-                transformed.Tooltip = toolTipObject.ToolTip;
-                transformed.DataType = toolTipObject.DataType;
-                transformed.CustomData = toolTipObject.CustomData;
-            } catch (e) {
-                transformed.DataType = getDataTypeFromValue(transformed);
-            }
-
-            function getDataTypeFromValue(prop) {
-                // TODO: Look at value to determine prop type
-                return 'String';
-            }
-
-            Object.defineProperty(transformed, 'BoundValue', {
-                get: function () {
-                    return transformed.Value;
-                },
-                set: function (newValue) {
-                    transformed.Value = newValue;
-                    ctx.updateProperty(part.refChain, prop.name, newValue)
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Object.defineProperty(transformed, 'inputType', {
-                enumerable: true,
-                configurable: false,
-                get: function () {
-                    if (transformed.DataType === 'Date') {
-                        return 'date';
-                    }
-                    else if (transformed.DataType === 'Boolean') {
-                        return 'checkbox';
-                    }
-                    else if (transformed.DataType === 'Integer' || transformed.DataType === 'Number') {
-                        return 'number';
-                    }
-                    else {
-                        return 'text';
-                    }
-                }
-            });
-
-            Object.defineProperty(transformed, 'isCheckbox', {
-                enumerable: true,
-                configurable: false,
-                get: function () {
-                    return (transformed.DataType === 'Boolean');
-                }
-            });
-
-            Object.defineProperty(transformed, 'hasChoiceList', {
-                enumerable: true,
-                configurable: false,
-                get: function () {
-                    return (transformed.ChoiceList != null);
-                }
-            });
-
-            Object.defineProperty(transformed, 'updateOn', {
-                enumerable: true,
-                configurable: false,
-                get: function () {
-                    if (transformed.isCheckbox || transformed.hasChoiceList) {
-                        return 'default';
-                    }
-                    else
-                        return 'blur';
-                }
-            });
-
-            return transformed;
-        }
 
         // TODO: Children array could probably be handled more efficiently
         mergedPart.Children = [];
@@ -403,50 +326,32 @@ export class C360ContextService {
 
         // Add properties for each UI Property and reset function on each UI Property
         part.UIProperties.forEach((uiProp) => {
-            var valuePropName = uiProp.FullName.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
-            var prop = uiProp;
+            let valuePropName = uiProp.fullName.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
 
-            // Add property that points to UI Property
+            // Add property that points to UI Property's value
             Object.defineProperty(part, valuePropName, {
                 get: function () {
-                    return prop.BoundValue;
+                    return uiProp.value;
                 },
                 set: function (newValue) {
-                    prop.BoundValue = newValue;
+                    uiProp.value = newValue;
                 },
                 enumerable: true,
                 configurable: true
             });
 
-            // Add reset function
-            prop.reset = function () {
-                ctx.resetProperty(part.RefChain, prop.UiRuleName);
-            };
-            
-            // Transform ChoicList data if it exists
-            if (prop.ChoiceList) {
-                prop.ChoiceList.forEach((choice) => {
-                    // TODO: Parse out the value and text if choice list contains structured data
-                    if (choice.DisplayString) {
-                        choice.value = choice.DisplayString;
-                        choice.text = choice.DisplayString;
-                        delete choice.DisplayString;
-                    }
-                })
-            }
-
-            var propPropName = valuePropName + propSuffix;
+            // Add another property that points to the UI Propert itself
+            let propPropName = valuePropName + propSuffix;
             part[propPropName] = uiProp;
         });
 
         // Add properties as shortcuts to each child
         part.Children.forEach((uiChild) => {
-            var childName = uiChild.Name.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
-            var child = uiChild;
+            let childName = uiChild.Name.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
 
             Object.defineProperty(part, childName, {
                 get: function () {
-                    return child;
+                    return uiChild;
                 },
                 enumerable: true,
                 configurable: true
@@ -455,7 +360,7 @@ export class C360ContextService {
 
         // Add shortcut to collection's children if applicable
         if (ctx.modelAdapter.isPartCollection(part)) {
-            var collectionName = ctx.modelAdapter.parseCollectionName(part.Name);
+            let collectionName = ctx.modelAdapter.parseCollectionName(part.Name);
 
             Object.defineProperty(part.Parent, collectionName, {
                 get: function () {
@@ -469,7 +374,7 @@ export class C360ContextService {
         if (part.Actions) {
             part.Actions.forEach((action) => {
                 part[action.Name] = function (params) {
-                    var actionData = {
+                    let actionData = {
                         refChain: part.RefChain,
                         name: action.Name,
                         params: params
