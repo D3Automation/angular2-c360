@@ -2,6 +2,7 @@ import { Injectable, OnInit } from '@angular/core';
 import { Observable } from 'rxjs/observable';
 import 'rxjs/add/operator/take';
 import { Subject } from 'rxjs/subject';
+import { ReplaySubject } from 'rxjs/replaysubject';
 import { UIPart } from './UIPart';
 import { IModelAdapter } from './IModelAdapter';
 import { DefaultModelAdapter } from './DefaultModelAdapter';
@@ -23,7 +24,7 @@ export class C360ContextService {
     private viewer: any = null;
     private lastError: any = null;
 
-    model: Subject<UIPart> = new Subject<UIPart>();
+    model: Subject<UIPart> = this.createModelSubject();
     modelActivities: Subject<Observable<any>> = new Subject<Observable<any>>();
 
     getNewModel(): Observable<UIPart> {
@@ -148,7 +149,7 @@ export class C360ContextService {
     }
 
     private initializeViewer(modelBlob?): Observable<UIPart> {
-        if (!this.model) { this.model = new Subject<UIPart>();}
+        if (!this.model) { this.model = this.createModelSubject();}
 
         if (!this.designKey) {
             this.model.error("Must set C360 design key");
@@ -208,6 +209,10 @@ export class C360ContextService {
         this.modelActivities.next(this.model.take(1));
 
         return this.model;
+    }
+
+    private createModelSubject(): Subject<UIPart> {
+        return new ReplaySubject<UIPart>(1);        
     }
 
     private updateModel(modelData) {
