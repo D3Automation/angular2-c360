@@ -105,7 +105,7 @@ export class UIProperty {
     }
     set value(newValue: any) {
         this.adeskProp.Value = newValue;
-        this.c360Context.updateProperty(this.part.RefChain, this.uiRuleName, newValue)
+        this.c360Context.updateProperty(this.part.refChain, this.uiRuleName, newValue)
     }
 
     
@@ -114,13 +114,13 @@ export class UIProperty {
     }
 
     reset() {
-        this.c360Context.resetProperty(this.part.RefChain, this.uiRuleName);
+        this.c360Context.resetProperty(this.part.refChain, this.uiRuleName);
     }
 
     private parseChoiceList(): void {
         if (this.adeskProp.ChoiceList) {
             this.choiceListData = this.adeskProp.ChoiceList.map(choice => {
-                return { value: choice.DisplayString, text: choice.DisplayString};
+                return <ChoiceListItem>{ value: choice.DisplayString, text: choice.DisplayString};
             });
         }
     }

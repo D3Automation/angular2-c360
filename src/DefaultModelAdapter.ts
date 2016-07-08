@@ -5,7 +5,7 @@ export class DefaultModelAdapter implements IModelAdapter {
         invalidCharacterReplacement: string = '';
 
         isPartCollection(part: UIPart) {
-            return part.Name.endsWith('Collection');
+            return part.name.endsWith('Collection');
         }
 
         parseCollectionName(partName: string) {
