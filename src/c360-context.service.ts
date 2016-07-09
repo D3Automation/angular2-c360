@@ -4,6 +4,7 @@ import 'rxjs/add/operator/take';
 import { Subject } from 'rxjs/subject';
 import { ReplaySubject } from 'rxjs/replaysubject';
 import { UIAction } from './UIAction';
+import { UIMessage } from './UIMessage';
 import { UIPart } from './UIPart';
 import { UIProperty } from './UIProperty';
 import { IModelAdapter } from './IModelAdapter';
@@ -166,7 +167,7 @@ export class C360ContextService {
             viewerElement = document.createElement("div");
             viewerElement.setAttribute("id", ViewerDivId);
             
-            document.body.insertAdjacentElement("afterbegin", viewerElement);
+            document.body.insertBefore(viewerElement, document.body.firstChild);
         }
         viewerElement.style.position = "absolute";
         viewerElement.style.zIndex = "-1";
@@ -252,6 +253,9 @@ export class C360ContextService {
 
             // Remove functions on existing part that executed each action
             mergedPart.actions.forEach(a => delete mergedPart[a.name]);
+
+            // Remove properties that point to UIProperties
+            mergedPart.uiProperties.forEach(p => delete mergedPart[p.fullName]);
         } else {
             mergedPart = new UIPart();
             mergedPart.refChain = part.refChain;
@@ -284,9 +288,16 @@ export class C360ContextService {
                 mergedPart.uiProperties.push(new UIProperty(this, mergedPart, prop.value));
             });
         }
-
-        mergedPart.messages = (part.Messages) ? part.Messages : [];
         
+        if (part.Messages) {
+            mergedPart.messages = part.Messages.map(m => {
+                return <UIMessage>{ messageText: m.MessageText, severity: m.Severity };
+            });
+        }
+        else {
+            mergedPart.messages = [];
+        }
+
         if (part.Actions) {
             mergedPart.actions = part.Actions.map(a => {
                 return <UIAction>{ name: a.Name, category: a.Category, menuText: a.MenuText, tooltip: a.tooltip };
@@ -322,36 +333,10 @@ export class C360ContextService {
             ctx.rootPart = part;
         }
 
-        let propSuffix = '_Prop';
-
-        // Remove all existing UIProperty properties from the part
-        Object.getOwnPropertyNames(part).forEach((propName) => {
-            if (propName.endsWith(propSuffix)) {
-                var propNameNoSuffix = propName.replace(propSuffix, '');
-                delete part[propNameNoSuffix];
-                delete part[propName];
-            }
-        });
-
-        // Add properties for each UI Property and reset function on each UI Property
+        // Add properties for each UI Property
         part.uiProperties.forEach((uiProp) => {
             let valuePropName = uiProp.fullName.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
-
-            // Add property that points to UI Property's value
-            Object.defineProperty(part, valuePropName, {
-                get: function () {
-                    return uiProp.value;
-                },
-                set: function (newValue) {
-                    uiProp.value = newValue;
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            // Add another property that points to the UI Propert itself
-            let propPropName = valuePropName + propSuffix;
-            part[propPropName] = uiProp;
+            part[valuePropName] = uiProp;
         });
 
         // Add properties as shortcuts to each child
@@ -380,6 +365,7 @@ export class C360ContextService {
             });
         }
 
+        // Add functions to execute each action
         if (part.actions) {
             part.actions.forEach((action) => {
                 part[action.name] = function (params) {
@@ -404,7 +390,7 @@ export class C360ContextService {
                 let iframe = document.createElement("iframe");
                 iframe.setAttribute("src", result.url);
                 iframe.style.display = "none";
-                document.body.insertAdjacentElement("beforeend", iframe);
+                document.body.appendChild(iframe);
 
                 setTimeout(function() {
                     iframe.remove();    

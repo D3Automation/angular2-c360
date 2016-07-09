@@ -1,3 +1,4 @@
 export class UIMessage {
-    FullName: string;
+    messageText: string;
+    severity: number;
 }
