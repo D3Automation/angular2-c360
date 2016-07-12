@@ -157,9 +157,12 @@ export class C360ContextService {
     private initializeViewer(modelBlob?): Observable<UIPart> {
         if (!this.model) { this.model = this.createModelSubject();}
 
+        let loadModelSubject = new Subject<UIPart>();
+        this.modelActivities.next(loadModelSubject);
+
         if (!this.designKey) {
-            this.model.error("Must set C360 design key");
-            return this.model;
+            loadModelSubject.error("Must set C360 design key");
+            return loadModelSubject;
         }
 
         let viewerElement = document.getElementById(ViewerDivId);
@@ -178,13 +181,15 @@ export class C360ContextService {
             this.viewer = viewer;
             this.viewer.getPropertyValues(null, (modelData) => {
                 this.updateModel(modelData);
-                this.model.next(this.rootPart);
+                loadModelSubject.next(this.rootPart);
+                this.model.next(this.rootPart);                
+                loadModelSubject.complete();
             });
         };
 
         let failedToLoad = (viewer) => {
             this.viewer = viewer;
-            this.model.error(viewer.state);
+            loadModelSubject.error(viewer.state);
         }
 
         let viewerOptions = {
@@ -208,13 +213,11 @@ export class C360ContextService {
                 c360.initViewer(viewerOptions);
             } else {
                 this.lastError = result.reason;
-                this.model.error(result.reason);
+                loadModelSubject.error(result.reason);
             }
         });
 
-        this.modelActivities.next(this.model.take(1));
-
-        return this.model;
+        return loadModelSubject;
     }
 
     private createModelSubject(): Subject<UIPart> {
