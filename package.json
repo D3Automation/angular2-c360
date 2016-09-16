@@ -1,22 +1,11 @@
 {
-  "name": "angular2-c360",
-  "version": "0.0.3-alpha.10",
-  "description": "Angular 2 services and components for working with Configurator 360",
   "author": "D3 Automation",
-  "license": "MIT",
-  "main": "angular2-c360.js",
-  "scripts": {
-    "build": "rimraf dist && tsc",    
-    "postbuild": "copyfiles package.json README.md LICENSE .npmignore dist",
-    "test": "tsc && karma start"
-  },
-  "typings": "./angular2-c360.d.ts",
+  "description": "Angular 2 services and components for working with Configurator 360",
   "dependencies": {
-    "@angular/core": "2.0.0-rc.4",
-    "rxjs": "5.0.0-beta.6",
-    "zone.js": "^0.6.12",
-    "es6-shim": "^0.35.0"
-  },
+    "@angular/core": "2.0.0",
+    "rxjs": "5.0.0-beta.12",
+    "zone.js": "^0.6.23"
+  },  
   "devDependencies": {
     "copyfiles": "0.2.1",
     "jasmine-core": "^2.4.1",
@@ -26,7 +15,18 @@
     "karma-jasmine": "^0.3.8",
     "rimraf": "2.5.2",
     "ts-node": "^0.5.5",
-    "typescript": "^1.8.10",
-    "typings": "^0.8.1"
-  }
+    "typescript": "^2.0.0",
+    "typings": "^1.3.2"
+  },
+  "license": "MIT",
+  "main": "angular2-c360.js",
+  "module": "angular2-c360.js",
+  "name": "angular2-c360",
+  "scripts": {
+    "build": "rimraf dist && tsc",    
+    "postbuild": "copyfiles package.json README.md LICENSE .npmignore dist",
+    "test": "tsc && karma start"
+  },
+  "typings": "./angular2-c360.d.ts",
+  "version": "0.0.3-beta.2"
 }
