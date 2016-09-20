@@ -25,7 +25,8 @@
   "scripts": {
     "build": "rimraf dist && tsc",    
     "postbuild": "copyfiles package.json README.md LICENSE .npmignore dist",
-    "test": "tsc && karma start"
+    "test": "tsc && karma start",
+    "typings": "typings"
   },
   "typings": "./angular2-c360.d.ts",
   "version": "0.0.3-beta.2"
