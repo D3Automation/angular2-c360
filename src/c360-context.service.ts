@@ -1,4 +1,4 @@
-import { Injectable, OnInit } from '@angular/core';
+import { Injectable, OnInit, Optional } from '@angular/core';
 import { Observable } from 'rxjs/observable';
 import 'rxjs/add/operator/take';
 import { Subject } from 'rxjs/subject';
@@ -7,8 +7,8 @@ import { UIAction } from './UIAction';
 import { UIMessage } from './UIMessage';
 import { UIPart } from './UIPart';
 import { UIProperty } from './UIProperty';
-import { IModelAdapter } from './IModelAdapter';
-import { DefaultModelAdapter } from './DefaultModelAdapter';
+import { C360ContextServiceConfig } from './C360ContextServiceConfig';
+import { ModelAdapter } from './ModelAdapter';
 import { ViewerDivId } from './constants';
 
 declare var ADSK: any;
@@ -16,7 +16,7 @@ declare var ADSK: any;
 @Injectable()
 export class C360ContextService {
     private designKey: string = undefined;        
-    private modelAdapter: IModelAdapter = new DefaultModelAdapter();
+    private modelAdapter: ModelAdapter;
     private actionParamsPropName: string = "uiActionParams";
 
     private rootPart: UIPart = null;
@@ -26,6 +26,11 @@ export class C360ContextService {
     private parts: Map<string, UIPart> = new Map<string, UIPart>();
     private viewer: any = null;
     private lastError: any = null;
+
+    constructor(config: C360ContextServiceConfig, @Optional() modelAdapter: ModelAdapter) {
+        this.designKey = config.designKey;
+        this.modelAdapter = (modelAdapter) ? modelAdapter : new ModelAdapter();
+    }
 
     model: Subject<UIPart> = this.createModelSubject();
     modelActivities: Subject<Observable<any>> = new Subject<Observable<any>>();
@@ -134,16 +139,6 @@ export class C360ContextService {
 
     isModelLoaded() {
         return (this.rootPart !== null);
-    }
-
-    // TODO: Handle setDesignKey with DI
-    setDesignKey(designKey: string) {
-        this.designKey = designKey;
-    }
-
-    // TODO: Handle setModelAdapter with DI
-    setModelAdapter(modelAdapter: IModelAdapter) {
-        this.modelAdapter = modelAdapter;
     }
 
     getViewer() {
