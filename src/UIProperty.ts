@@ -9,8 +9,8 @@ export class UIProperty {
     private customDataValue: any;
 
     constructor(private c360Context: C360ContextService, private hostPart: UIPart, private adeskProp: any) {
-        this.parseChoiceList();
         this.parseTooltip();
+        this.parseChoiceList();
     }
 
     get category(): string {
@@ -42,13 +42,13 @@ export class UIProperty {
     }
 
     get inputType(): string {
-        if (this.dataType === 'Date') {
+        if (this.dataType === 'date') {
             return 'date';
         }
-        else if (this.dataType === 'Boolean') {
+        else if (this.dataType === 'boolean') {
             return 'checkbox';
         }
-        else if (this.dataType === 'Integer' || this.dataType === 'Number') {
+        else if (this.dataType === 'integer' || this.dataType === 'number') {
             return 'number';
         }
         else {
@@ -61,7 +61,7 @@ export class UIProperty {
     }
 
     get isCheckbox(): boolean {
-        return (this.dataType === 'Boolean');
+        return (this.dataType === 'boolean');
     }
 
     get isLocked(): boolean {
@@ -119,8 +119,13 @@ export class UIProperty {
 
     private parseChoiceList(): void {
         if (this.adeskProp.ChoiceList) {
-            this.choiceListData = this.adeskProp.ChoiceList.map(choice => {
-                return <ChoiceListItem>{ value: choice.DisplayString, text: choice.DisplayString};
+            var prop = this;
+
+            this.choiceListData = this.adeskProp.ChoiceList.map(function (choice) {
+                return <ChoiceListItem>{ 
+                    value: prop.convertChoiceListValue(choice.DisplayString),
+                    text: choice.DisplayString
+                };
             });
         }
     }
@@ -130,7 +135,7 @@ export class UIProperty {
             let toolTipObject = JSON.parse(this.adeskProp.Tooltip);
 
             this.toolTipValue = toolTipObject.ToolTip;
-            this.dataTypeValue = toolTipObject.DataType;
+            this.dataTypeValue = toolTipObject.DataType.toLowerCase();
             this.customDataValue = toolTipObject.CustomData;
         } catch (e) {
             this.dataTypeValue = this.getDataTypeFromValue();
@@ -138,7 +143,29 @@ export class UIProperty {
     }
 
     private getDataTypeFromValue() {
-        // TODO: Look at value to determine prop type
-        return 'String';
-    }    
+        if (typeof(this.value) === 'number') {
+            return "number"
+        } else if (this.value instanceof Date) {
+            return "date"
+        } else if (typeof(this.value) === 'boolean') {
+            return "boolean"
+        } else {
+            return "string";
+        }
+    }
+
+    private convertChoiceListValue(itemValue: any): any {
+        switch (this.dataType) {
+            case "string":
+                return itemValue;
+            case "number":
+                return parseFloat(itemValue);
+            case "integer":
+                return parseInt(itemValue);
+            case "boolean":
+                return (itemValue === "True" || itemValue === "true");
+            default:
+                return itemValue;
+        }
+    }
 }
