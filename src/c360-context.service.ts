@@ -160,17 +160,13 @@ export class C360ContextService {
             return loadModelSubject;
         }
 
-        let viewerElement = document.getElementById(ViewerDivId);
-        if (!viewerElement) {
-            viewerElement = document.createElement("div");
-            viewerElement.setAttribute("id", ViewerDivId);
-            
-            document.body.insertBefore(viewerElement, document.body.firstChild);
-        }
+        this.clearModel();
+        
+        let viewerElement = document.createElement("div");
+        viewerElement.setAttribute("id", ViewerDivId);        
+        document.body.insertBefore(viewerElement, document.body.firstChild);
         viewerElement.style.position = "absolute";
         viewerElement.style.zIndex = "-1";
-
-        this.clearModel();
 
         let viewerLoaded = (viewer) => {
             this.viewer = viewer;
@@ -426,6 +422,11 @@ export class C360ContextService {
         if (this.viewer) {
             this.viewer.unload();
             this.viewer = null;
+        }
+
+        let viewerElement = document.getElementById(ViewerDivId);
+        if (viewerElement) {
+            viewerElement.remove();
         }
     }
 
