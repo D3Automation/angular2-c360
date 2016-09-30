@@ -24,8 +24,7 @@ export class C360ViewerComponent implements OnInit, OnDestroy {
     ngOnDestroy() {
         this.viewerElement.style.top = "0";
         this.viewerElement.style.left = "0";
-        // Use z-index rather than visibility to hide/show, since the viewer apparently
-        //  doesn't updated itself when hidden
+        this.viewerElement.hidden = true;
         this.viewerElement.style.zIndex = "-1";
     }
     
@@ -37,8 +36,7 @@ export class C360ViewerComponent implements OnInit, OnDestroy {
         let widthPx = this.componentElement.clientWidth + "px";
         let heightPx = this.componentElement.clientHeight + "px";
 
-        // Use z-index rather than visibility to hide/show, since the viewer apparently
-        //  doesn't updated itself when hidden
+        this.viewerElement.hidden = false;
         this.viewerElement.style.zIndex = "1";
         this.viewerElement.style.top = this.componentElement.offsetTop + "px";
         this.viewerElement.style.left = this.componentElement.offsetLeft + "px";
