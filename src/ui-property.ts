@@ -1,6 +1,6 @@
 import { C360ContextService } from './c360-context.service';
-import { UIPart } from './UIPart';
-import { ChoiceListItem } from './ChoiceListItem';
+import { UIPart } from './ui-part';
+import { ChoiceListItem } from './choice-list-item';
 
 export class UIProperty {
     private choiceListData: Array<ChoiceListItem>;

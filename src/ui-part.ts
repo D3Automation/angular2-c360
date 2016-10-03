@@ -1,6 +1,6 @@
-import { UIAction } from './UIAction';
-import { UIMessage } from './UIMessage';
-import { UIProperty } from './UIProperty';
+import { UIAction } from './ui-action';
+import { UIMessage } from './ui-message';
+import { UIProperty } from './ui-property';
 
 export class UIPart {
     refChain: string;

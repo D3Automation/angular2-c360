@@ -1,8 +1,8 @@
 import { NgModule, ModuleWithProviders } from '@angular/core';
 import { C360ContextService } from './src/c360-context.service';
 import { C360ViewerComponent } from './src/c360-viewer.component';
-import { C360ContextServiceConfig } from './src/C360ContextServiceConfig';
-import { ModelAdapter } from './src/ModelAdapter';
+import { C360ContextServiceConfig } from './src/c360-context-service-config';
+import { ModelAdapter } from './src/model-adapter';
 
 @NgModule({
   declarations: [ C360ViewerComponent ],
@@ -26,9 +26,8 @@ export class AngularC360Module {
   }
 }
 
-export { C360ContextService };
-export * from './src/ModelAdapter';
-export * from './src/UIAction';
-export * from './src/UIMessage';
-export * from './src/UIPart';
-export * from './src/UIProperty';
+export { C360ContextService, C360ContextServiceConfig, ModelAdapter };
+export * from './src/ui-action';
+export * from './src/ui-message';
+export * from './src/ui-part';
+export * from './src/ui-property';

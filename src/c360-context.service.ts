@@ -3,12 +3,12 @@ import { Observable } from 'rxjs/observable';
 import 'rxjs/add/operator/take';
 import { Subject } from 'rxjs/subject';
 import { ReplaySubject } from 'rxjs/replaysubject';
-import { UIAction } from './UIAction';
-import { UIMessage } from './UIMessage';
-import { UIPart } from './UIPart';
-import { UIProperty } from './UIProperty';
-import { C360ContextServiceConfig } from './C360ContextServiceConfig';
-import { ModelAdapter } from './ModelAdapter';
+import { UIAction } from './ui-action';
+import { UIMessage } from './ui-message';
+import { UIPart } from './ui-part';
+import { UIProperty } from './ui-property';
+import { C360ContextServiceConfig } from './c360-context-service-config';
+import { ModelAdapter } from './model-adapter';
 import { ViewerDivId } from './constants';
 
 declare var ADSK: any;
