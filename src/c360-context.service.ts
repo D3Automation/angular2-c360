@@ -217,32 +217,39 @@ export class C360ContextService {
 
     private updateModel(modelData) {
         this.clearLastError();
+        this.handleDeletedParts(modelData.removedRefChains);
         this.mergePart(modelData, modelData.parentRefChain);
-
-        // Detach deleted entities
-        if (modelData.removedRefChains) {
-            modelData.removedRefChains.forEach((refChain) => {
-                let partToRemove = this.getPartByRefChain(refChain);
-                if (partToRemove) {
-                    if (partToRemove.parent && partToRemove.parent.hasOwnProperty(partToRemove.name)) {
-                        delete partToRemove.parent[partToRemove.name];
-                    }
-
-                    this.parts.delete(partToRemove.refChain);
-                }
-            })
-        }
 
         // Post-process parts (add shortcut properties, action methods, etc.)
         this.processParts(this.getParts());
     }
 
+    private handleDeletedParts(removedRefChains: Array<string>) {
+        if (!removedRefChains) {
+            return;
+        }
+
+        removedRefChains.forEach((refChain) => {
+            let partToRemove = this.getPartByRefChain(refChain);
+            if (partToRemove) {
+                let propName = this.ensureValidPropertyName(partToRemove.name);
+                if (partToRemove.parent && partToRemove.parent.hasOwnProperty(propName)) {
+                    delete partToRemove.parent[propName];
+                    partToRemove.parent.removeChild(partToRemove.refChain);
+                }
+
+                this.parts.delete(partToRemove.refChain);
+            }
+        })
+    }
+
     private mergePart(part: any, parentRefChain?: string) {
-        let ctx = this;        
-        let isCompleteChangedPart = (part.isCompleteChangedPart == true);
+        let isCompleteChangedPart: boolean = (part.isCompleteChangedPart == true);
+        let isNewPart: boolean = true;
         let mergedPart: UIPart;
 
         if (this.parts.get(part.refChain)) {
+            isNewPart = false;
             mergedPart = this.parts.get(part.refChain);
 
             // Remove functions on existing part that executed each action
@@ -269,14 +276,8 @@ export class C360ContextService {
 
         if (part.properties) {
             part.properties.forEach(prop => {
-                // TODO - Optimize this so that the first time a part is added its properties aren't searched
-                if (!isCompleteChangedPart) {
-                    for (var i = 0, len = mergedPart.uiProperties.length; i < len; i++) {
-                        if (mergedPart.uiProperties[i].fullName === prop.value.FullName) {
-                            mergedPart.uiProperties.splice(i, 1);
-                            break;
-                        }
-                    }
+                if (!(isCompleteChangedPart || isNewPart)) {
+                    mergedPart.removeUIProperty(prop.value.FullName);
                 }
 
                 mergedPart.uiProperties.push(new UIProperty(this, mergedPart, prop.value));
@@ -301,11 +302,13 @@ export class C360ContextService {
             mergedPart.actions = [];
         }
 
-        // TODO: Children array could probably be handled more efficiently
-        mergedPart.children = [];
         if (part.children) {
             part.children.forEach((child) => {
-                mergedPart.children.push(ctx.mergePart(child, part.refChain));
+                let mergedChild = this.mergePart(child, part.refChain);
+
+                if (!mergedPart.hasChild(part.refChain)) {
+                    mergedPart.children.push(mergedChild);
+                }                
             });
         }
 
@@ -321,21 +324,19 @@ export class C360ContextService {
     }
     
     private processPart(part: UIPart) {
-        let ctx = this;
-
         if (part.refChain === 'Root') {
-            ctx.rootPart = part;
+            this.rootPart = part;
         }
 
         // Add properties for each UI Property
         part.uiProperties.forEach((uiProp) => {
-            let valuePropName = uiProp.fullName.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
+            let valuePropName = this.ensureValidPropertyName(uiProp.fullName);
             part[valuePropName] = uiProp;
         });
 
         // Add properties as shortcuts to each child
         part.children.forEach((uiChild) => {
-            let childName = uiChild.name.replace(ctx.invalidCharacterPattern, ctx.modelAdapter.invalidCharacterReplacement);
+            let childName = this.ensureValidPropertyName(uiChild.name);
 
             Object.defineProperty(part, childName, {
                 get: function () {
@@ -347,8 +348,8 @@ export class C360ContextService {
         });
 
         // Add shortcut to collection's children if applicable
-        if (ctx.modelAdapter.isPartCollection(part)) {
-            let collectionName = ctx.modelAdapter.parseCollectionName(part.name);
+        if (this.modelAdapter.isPartCollection(part)) {
+            let collectionName = this.modelAdapter.parseCollectionName(part.name);
 
             Object.defineProperty(part.parent, collectionName, {
                 get: function () {
@@ -369,7 +370,7 @@ export class C360ContextService {
                         params: params
                     };
 
-                    return ctx.executeAction(actionData);
+                    return this.executeAction(actionData);
                 };
             });
         }
@@ -444,5 +445,9 @@ export class C360ContextService {
 
     private clearLastError() {
         this.lastError = null;
+    }
+
+    private ensureValidPropertyName(input: string): string {
+        return input.replace(this.invalidCharacterPattern, this.modelAdapter.invalidCharacterReplacement);
     }
   }

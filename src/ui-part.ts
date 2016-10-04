@@ -16,4 +16,26 @@ export class UIPart {
         return this.children.map(child => { return child.allMessages; }).reduce((prev, curr) =>
             prev.concat(curr), this.messages);
     }
+
+    hasChild(refChain: string): boolean {
+        return this.children.some(child => child.refChain === refChain);
+    }
+
+    findChild(refChain: string): UIPart {
+        return this.children.find(child => child.refChain === refChain);
+    }
+
+    removeChild(refChain: string) {
+        let index = this.children.findIndex(child => child.refChain === refChain);
+        if (index >= 0) {
+            this.children.splice(index, 1);
+        }
+    }
+
+    removeUIProperty(propName: string) {
+        let index = this.uiProperties.findIndex(prop => prop.fullName === propName);
+        if (index >= 0) {
+            this.uiProperties.splice(index, 1);
+        }
+    }    
 }
