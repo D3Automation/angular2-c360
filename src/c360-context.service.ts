@@ -26,14 +26,20 @@ export class C360ContextService {
     private parts: Map<string, UIPart> = new Map<string, UIPart>();
     private viewer: any = null;
     private lastError: any = null;
+    private currentActivities: Set<Observable<any>> = new Set<Observable<any>>();
 
     constructor(config: C360ContextServiceConfig, @Optional() modelAdapter: ModelAdapter) {
         this.designKey = config.designKey;
         this.modelAdapter = (modelAdapter) ? modelAdapter : new ModelAdapter();
+        this.modelActivities.subscribe((a) => this.trackActivity(a), undefined, this.currentActivities.clear);
     }
 
     model: Subject<UIPart> = this.createModelSubject();
     modelActivities: Subject<Observable<any>> = new Subject<Observable<any>>();
+
+    get isBusy(): boolean {
+        return (this.currentActivities.size > 0);
+    }
 
     getNewModel(): Observable<UIPart> {
         return this.initializeViewer();
@@ -450,4 +456,9 @@ export class C360ContextService {
     private ensureValidPropertyName(input: string): string {
         return input.replace(this.invalidCharacterPattern, this.modelAdapter.invalidCharacterReplacement);
     }
-  }
+
+    private trackActivity(activity: Observable<any>) {
+        this.currentActivities.add(activity);            
+        activity.subscribe(undefined, () => this.currentActivities.delete(activity), () => this.currentActivities.delete(activity));
+    }
+}
