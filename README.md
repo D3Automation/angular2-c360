@@ -145,7 +145,7 @@ on [Bootstrap 4](https://v4-alpha.getbootstrap.com/).
 #### Future Plans
 Ideally, it wouldn't require fully implementing a custom component in order to encapsulate the template to be used for [UIProperty](src/ui-property.ts) objects
 in your application.  In the [Angular 1 version of this library](https://github.com/D3Automation/angular-c360), an implementation of [`<c360-prop>` is provided](https://github.com/D3Automation/angular-c360/blob/master/directives/c360Prop.directive.js)
-as part of the library.  It is then possible to override just the template for the directive (via configuration) without having to implement a fully custom directive.
+as part of the library.  It is then possible to [override just the template](https://github.com/D3Automation/angular-c360#styling) for the directive (via configuration) without having to implement a fully custom directive.
 
 Angular 2 does not currently support this, but there is already an [issue requesting this functionality](https://github.com/angular/angular/issues/11144), so hopefully
 this will be possible at some point.
