@@ -58,8 +58,6 @@ export class AppModule { }
 ```
 
 ## Common Usage
-_Note: Code samples shown below adhere to the [Angular Style Guide](https://angular.io/docs/ts/latest/guide/style-guide.html) on the official Angular site._
-
 ### Loading Model
 * In the component in which you will use the C360 model, inject `c360Context`.
 * Call `c360Context.getNewModel()`, which returns a promise containing the root part.
