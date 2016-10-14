@@ -1,8 +1,5 @@
 import { Injectable, OnInit, Optional } from '@angular/core';
-import { Observable } from 'rxjs/observable';
-import 'rxjs/add/operator/take';
-import { Subject } from 'rxjs/subject';
-import { ReplaySubject } from 'rxjs/replaysubject';
+import { Observable, Subject, ReplaySubject } from 'rxjs/Rx';
 import { UIAction } from './ui-action';
 import { UIMessage } from './ui-message';
 import { UIPart } from './ui-part';
@@ -41,11 +38,11 @@ export class C360ContextService {
         return (this.currentActivities.size > 0);
     }
 
-    getNewModel(): Observable<UIPart> {
+    getNewModel(): Promise<UIPart> {
         return this.initializeViewer();
     }
 
-    loadModel(modelBlob: any): Observable<UIPart> {
+    loadModel(modelBlob: any): Promise<UIPart> {
         return this.initializeViewer(modelBlob);
     }
 
@@ -61,7 +58,7 @@ export class C360ContextService {
         return this.parts.get(refChain);
     }
 
-    updateProperty(refChain, name, value): Observable<void> {
+    updateProperty(refChain, name, value): Promise<void> {
         return this.updateProperties({
             refChain: refChain,
             properties: [
@@ -73,13 +70,13 @@ export class C360ContextService {
         });
     }
 
-    updateProperties(properties: any): Observable<void> {
+    updateProperties(properties: any): Promise<void> {
         let propSubject = new Subject<void>();
         this.modelActivities.next(propSubject);
 
         if (this.updateInProgress) {
             propSubject.error('Unable to update model properties while an update is already in progress');
-            return propSubject;
+            return propSubject.toPromise();
         }
 
         this.updateInProgress = true;      
@@ -88,6 +85,7 @@ export class C360ContextService {
             try {
                 this.updateModel(modelData);
                 this.setDirty(true);
+                propSubject.next();
                 propSubject.complete();
             } catch (error) {
                 propSubject.error(error);
@@ -99,20 +97,20 @@ export class C360ContextService {
             propSubject.error(err);
         });
         
-        return propSubject;
+        return propSubject.toPromise();
     }
 
-    resetProperty(refChain, name): Observable<void> {
+    resetProperty(refChain, name): Promise<void> {
         return this.updateProperty(refChain, name, null);
     }
 
-    executeAction(actionParams): Observable<any> {
+    executeAction(actionParams): Promise<any> {
         let actionSubject = new Subject<any>();
         this.modelActivities.next(actionSubject);
         
         if (this.updateInProgress) {
             actionSubject.error('Unable to execute action while an update is already in progress');
-            return actionSubject;
+            return actionSubject.toPromise();
         }
 
         this.updateInProgress = true;
@@ -128,7 +126,7 @@ export class C360ContextService {
             this.finishExecuteAction(actionParams, actionSubject);
         }
 
-        return actionSubject;
+        return actionSubject.toPromise();
     }
 
     endSession() {
@@ -155,7 +153,7 @@ export class C360ContextService {
         return this.lastError;
     }
 
-    private initializeViewer(modelBlob?): Observable<UIPart> {
+    private initializeViewer(modelBlob?): Promise<UIPart> {
         if (!this.model) { this.model = this.createModelSubject();}
 
         let loadModelSubject = new Subject<UIPart>();
@@ -163,7 +161,7 @@ export class C360ContextService {
 
         if (!this.designKey) {
             loadModelSubject.error("Must set C360 design key");
-            return loadModelSubject;
+            return loadModelSubject.toPromise();
         }
 
         this.clearModel();
@@ -214,7 +212,7 @@ export class C360ContextService {
             }
         });
 
-        return loadModelSubject;
+        return loadModelSubject.toPromise();
     }
 
     private createModelSubject(): Subject<UIPart> {
@@ -368,6 +366,8 @@ export class C360ContextService {
 
         // Add functions to execute each action
         if (part.actions) {
+            let ctx = this;
+
             part.actions.forEach((action) => {
                 part[action.name] = function (params) {
                     let actionData = {
@@ -376,7 +376,7 @@ export class C360ContextService {
                         params: params
                     };
 
-                    return this.executeAction(actionData);
+                    return ctx.executeAction(actionData);
                 };
             });
         }
