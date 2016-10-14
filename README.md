@@ -59,9 +59,9 @@ export class AppModule { }
 
 ## Common Usage
 ### Loading Model
-* In the component in which you will use the C360 model, inject `c360Context`.
-* Call `c360Context.getNewModel()`, which returns a promise containing the root part.
-* In order to prevent reloading the model every time the component is activated, `c360Context.isModelLoaded()` can be evaluated first
+* In the component in which you will use the C360 model, inject `C360ContextService`.
+* Call `C360ContextService.getNewModel()`, which returns a promise containing the root part.
+* In order to prevent reloading the model every time the component is activated, `C360ContextService.isModelLoaded()` can be evaluated first
 
 Example:
 ```typescript
