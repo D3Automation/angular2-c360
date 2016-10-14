@@ -132,6 +132,13 @@ can be found in the [angular2-c360-sample](https://github.com/D3Automation/angul
 accepts a [UIProperty](src/ui-property.ts) as an input, and it dynamically renders an `<input>` or `<select>` bound to that property -- depending on how the property
 is defined in the C360 model.
 
+Here is an example using the [`<c360-prop>`](https://github.com/D3Automation/angular2-c360-sample/blob/master/src/app/c360-prop/c360-prop.component.html) component to display all properties for a part:
+```html
+<div *ngIf="part">
+    <c360-prop *ngFor="let prop of part.uiProperties" [uiProp]="prop"></c360-prop>
+</div>
+```
+
 Note: The [`<c360-prop>`](https://github.com/D3Automation/angular2-c360-sample/blob/master/src/app/c360-prop/c360-prop.component.html) mentioned above has a dependency
 on [Bootstrap 4](https://v4-alpha.getbootstrap.com/).
 
