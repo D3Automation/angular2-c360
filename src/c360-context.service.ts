@@ -1,5 +1,5 @@
 import { Injectable, OnInit, Optional } from '@angular/core';
-import { Observable, Subject, ReplaySubject } from 'rxjs/Rx';
+import { Subject, BehaviorSubject } from 'rxjs/Rx';
 import { UIAction } from './ui-action';
 import { UIMessage } from './ui-message';
 import { UIPart } from './ui-part';
@@ -7,8 +7,6 @@ import { UIProperty } from './ui-property';
 import { C360ContextServiceConfig } from './c360-context-service-config';
 import { ModelAdapter } from './model-adapter';
 import { ViewerDivId } from './constants';
-
-declare var ADSK: any;
 
 @Injectable()
 export class C360ContextService {
@@ -23,20 +21,14 @@ export class C360ContextService {
     private parts: Map<string, UIPart> = new Map<string, UIPart>();
     private viewer: any = null;
     private lastError: any = null;
-    private currentActivities: Set<Observable<any>> = new Set<Observable<any>>();
 
     constructor(config: C360ContextServiceConfig, @Optional() modelAdapter: ModelAdapter) {
         this.designKey = config.designKey;
         this.modelAdapter = (modelAdapter) ? modelAdapter : new ModelAdapter();
-        this.modelActivities.subscribe((a) => this.trackActivity(a), undefined, this.currentActivities.clear);
     }
 
-    model: Subject<UIPart> = this.createModelSubject();
-    modelActivities: Subject<Observable<any>> = new Subject<Observable<any>>();
-
-    get isBusy(): boolean {
-        return (this.currentActivities.size > 0);
-    }
+    model: Subject<UIPart> = new BehaviorSubject<UIPart>(null);
+    busy: Subject<boolean> = new BehaviorSubject<boolean>(false);
 
     getNewModel(): Promise<UIPart> {
         return this.initializeViewer();
@@ -71,33 +63,33 @@ export class C360ContextService {
     }
 
     updateProperties(properties: any): Promise<void> {
-        let propSubject = new Subject<void>();
-        this.modelActivities.next(propSubject);
-
-        if (this.updateInProgress) {
-            propSubject.error('Unable to update model properties while an update is already in progress');
-            return propSubject.toPromise();
-        }
-
-        this.updateInProgress = true;      
-
-        this.viewer.setPropertyValues(properties, modelData => {
-            try {
-                this.updateModel(modelData);
-                this.setDirty(true);
-                propSubject.next();
-                propSubject.complete();
-            } catch (error) {
-                propSubject.error(error);
-            } finally {
-                this.updateInProgress = false;      
+        let promise = new Promise<void>((resolve, reject) => {
+            if (this.updateInProgress) {
+                reject('Unable to update model properties while an update is already in progress');
             }
-        }, err => {
-            this.updateInProgress = false;      
-            propSubject.error(err);
+
+            this.busy.next(true);
+            this.updateInProgress = true;      
+
+            this.viewer.setPropertyValues(properties, modelData => {
+                try {
+                    this.updateModel(modelData);
+                    this.setDirty(true);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    this.updateInProgress = false;      
+                    this.busy.next(false);
+                }
+            }, err => {
+                this.updateInProgress = false;      
+                this.busy.next(false);
+                reject(err);
+            });
         });
-        
-        return propSubject.toPromise();
+
+        return promise;
     }
 
     resetProperty(refChain, name): Promise<void> {
@@ -105,35 +97,31 @@ export class C360ContextService {
     }
 
     executeAction(actionParams): Promise<any> {
-        let actionSubject = new Subject<any>();
-        this.modelActivities.next(actionSubject);
-        
-        if (this.updateInProgress) {
-            actionSubject.error('Unable to execute action while an update is already in progress');
-            return actionSubject.toPromise();
-        }
+        let promise = new Promise<any>((resolve, reject) => {
+            if (this.updateInProgress) {
+                reject('Unable to execute action while an update is already in progress');
+            }
 
-        this.updateInProgress = true;
-        
-        if (actionParams.params) {
-            let actionParamPropData = {};
-            actionParamPropData[this.actionParamsPropName] = JSON.stringify(actionParams.params);
-            this.viewer.setPropertyValues(actionParamPropData,
-                () => this.finishExecuteAction(actionParams, actionSubject),
-                err => actionSubject.error(err));
-        }
-        else {
-            this.finishExecuteAction(actionParams, actionSubject);
-        }
+            this.busy.next(true);
+            this.updateInProgress = true;      
 
-        return actionSubject.toPromise();
+            if (actionParams.params) {
+                let actionParamPropData = {};
+                actionParamPropData[this.actionParamsPropName] = JSON.stringify(actionParams.params);
+                this.viewer.setPropertyValues(actionParamPropData,
+                    () => this.finishExecuteAction(actionParams, resolve, reject),
+                    err => reject(err));
+            }
+            else {
+                this.finishExecuteAction(actionParams, resolve, reject);
+            }
+        });
+                
+        return promise;
     }
 
     endSession() {
-        if (this.model) {
-            this.model.complete();
-            this.model = undefined;
-        }
+        this.model.next(null);
         this.clearModel();
     }
 
@@ -154,69 +142,62 @@ export class C360ContextService {
     }
 
     private initializeViewer(modelBlob?): Promise<UIPart> {
-        if (!this.model) { this.model = this.createModelSubject();}
-
-        let loadModelSubject = new Subject<UIPart>();
-        this.modelActivities.next(loadModelSubject);
-
-        if (!this.designKey) {
-            loadModelSubject.error("Must set C360 design key");
-            return loadModelSubject.toPromise();
-        }
-
-        this.clearModel();
-        
-        let viewerElement = document.createElement("div");
-        viewerElement.setAttribute("id", ViewerDivId);        
-        document.body.insertBefore(viewerElement, document.body.firstChild);
-        viewerElement.style.position = "absolute";
-        viewerElement.style.zIndex = "-1";
-
-        let viewerLoaded = (viewer) => {
-            this.viewer = viewer;
-            this.viewer.getPropertyValues(null, (modelData) => {
-                this.updateModel(modelData);
-                loadModelSubject.next(this.rootPart);
-                this.model.next(this.rootPart);                
-                loadModelSubject.complete();
-            });
-        };
-
-        let failedToLoad = (viewer) => {
-            this.viewer = viewer;
-            loadModelSubject.error(viewer.state);
-        }
-
-        let viewerOptions = {
-            container: viewerElement,
-            design: this.designKey,
-            panes: false,
-            success: viewerLoaded,
-            error: failedToLoad,
-            verbose: true,
-            openFromFile: null
-        }
-
-        if (modelBlob) {
-            viewerOptions.openFromFile = modelBlob;
-        }
-
-        // Check client compatibility and load the viewer if compatible.
-        let c360 = window.ADSK && window.ADSK.C360;
-        c360.checkCompatibility((result) => {
-            if (result.compatible) {
-                c360.initViewer(viewerOptions);
-            } else {
-                this.lastError = result.reason;
-                loadModelSubject.error(result.reason);
+        return new Promise<UIPart>((resolve, reject) => {
+            if (!this.designKey) {
+                reject("Must set C360 design key");
             }
+
+            this.busy.next(true);
+            this.clearModel();
+        
+            let viewerElement = document.createElement("div");
+            viewerElement.setAttribute("id", ViewerDivId);        
+            document.body.insertBefore(viewerElement, document.body.firstChild);
+            viewerElement.style.position = "absolute";
+            viewerElement.style.zIndex = "-1";
+
+            let viewerLoaded = (viewer) => {
+                this.viewer = viewer;
+                this.viewer.getPropertyValues(null, (modelData) => {
+                    this.updateModel(modelData);
+                    this.model.next(this.rootPart); 
+                    this.busy.next(false);
+                    resolve(this.rootPart);               
+                });
+            };
+
+            let failedToLoad = (viewer) => {
+                this.viewer = viewer;
+                reject(viewer.state);
+                this.busy.next(false);
+            }
+
+            let viewerOptions = {
+                container: viewerElement,
+                design: this.designKey,
+                panes: false,
+                success: viewerLoaded,
+                error: failedToLoad,
+                verbose: true,
+                openFromFile: null
+            }
+
+            if (modelBlob) {
+                viewerOptions.openFromFile = modelBlob;
+            }
+
+            // Check client compatibility and load the viewer if compatible.
+            let c360 = window.ADSK && window.ADSK.C360;
+            c360.checkCompatibility((result) => {
+                if (result.compatible) {
+                    c360.initViewer(viewerOptions);
+                } else {
+                    this.lastError = result.reason;
+                    this.busy.next(false);
+                    reject(result.reason);
+                }
+            });
         });
-
-        return loadModelSubject.toPromise();
-    }
-
-    private createModelSubject(): Subject<UIPart> {
-        return new ReplaySubject<UIPart>(1);        
     }
 
     private updateModel(modelData) {
@@ -382,10 +363,13 @@ export class C360ContextService {
         }
     }
 
-    private finishExecuteAction(actionParams: any, subject: Subject<any>): void {
+    private finishExecuteAction(actionParams: any, resolve: (value?: any) => void, reject: (reason?: any) => void): void {
         this.viewer.executeAction(actionParams, result => {
             this.updateInProgress = false;
-            
+            this.busy.next(false);
+
+            let value: any = null;
+
             if (result.url) {
                 // Download output
                 let iframe = document.createElement("iframe");
@@ -406,17 +390,18 @@ export class C360ContextService {
                     message = result.message;
                 }
 
-                subject.next(message);
+                value = message;
             }
             else {
                 this.updateModel(result);
                 this.setDirty(true);
             }
 
-            subject.complete();
+            resolve(value);
         }, err => {
             this.updateInProgress = false;
-            subject.error('Error occurred while executing action ' + actionParams.name);
+            this.busy.next(false);
+            reject('Error occurred while executing action ' + actionParams.name);
         });
     }
 
@@ -455,10 +440,5 @@ export class C360ContextService {
 
     private ensureValidPropertyName(input: string): string {
         return input.replace(this.invalidCharacterPattern, this.modelAdapter.invalidCharacterReplacement);
-    }
-
-    private trackActivity(activity: Observable<any>) {
-        this.currentActivities.add(activity);            
-        activity.subscribe(undefined, () => this.currentActivities.delete(activity), () => this.currentActivities.delete(activity));
     }
 }

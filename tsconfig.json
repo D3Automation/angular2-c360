@@ -3,18 +3,18 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "lib": ["es2015", "dom"],
     "module": "commonjs",
     "target": "es5",
     "noImplicitAny": false,
-    "outDir": "dist",
+    "outDir": "./dist",
     "sourceMap": true,
     "sourceRoot": "./",
     "declaration": true,
     "removeComments": true
   },
   "files": [
-    "./angular2-c360.ts",
-    "./src/window.ts",
-    "./typings/index.d.ts"
+    "./index.ts",
+    "./typings.d.ts"
   ]
 }
