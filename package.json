@@ -32,5 +32,5 @@
     "typings": "typings"
   },
   "typings": "./angular2-c360.d.ts",
-  "version": "0.2.1"
+  "version": "0.3.0"
 }
