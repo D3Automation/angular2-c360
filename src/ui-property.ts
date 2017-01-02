@@ -104,10 +104,13 @@ export class UIProperty {
         return this.adeskProp.Value;
     }
     set value(newValue: any) {
-        this.adeskProp.Value = newValue;
-        this.c360Context.updateProperty(this.part.refChain, this.uiRuleName, newValue)
-    }
+        let typedValue: any = this.castValue(newValue);
 
+        if (typedValue !== this.value) {
+            this.adeskProp.Value = newValue;
+            this.c360Context.updateProperty(this.part.refChain, this.uiRuleName, newValue)
+        }
+    }
     
     get hasChoiceList(): boolean {
         return this.choiceList && this.choiceList.length > 0; 
@@ -123,7 +126,7 @@ export class UIProperty {
 
             this.choiceListData = this.adeskProp.ChoiceList.map(function (choice) {
                 return <ChoiceListItem>{ 
-                    value: prop.convertChoiceListValue(choice.DisplayString),
+                    value: prop.castValue(choice.DisplayString),
                     text: choice.DisplayString
                 };
             });
@@ -154,18 +157,18 @@ export class UIProperty {
         }
     }
 
-    private convertChoiceListValue(itemValue: any): any {
+    private castValue(value: any) {
         switch (this.dataType) {
             case "string":
-                return itemValue;
+                return String(value);
             case "number":
-                return parseFloat(itemValue);
+                return parseFloat(value);
             case "integer":
-                return parseInt(itemValue);
+                return parseInt(value);
             case "boolean":
-                return (itemValue === "True" || itemValue === "true");
+                return (value === true || value === "True" || value === "true");
             default:
-                return itemValue;
+                return value;
         }
     }
 }
